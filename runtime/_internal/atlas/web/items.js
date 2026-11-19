@@ -1,0 +1,203 @@
+// Original 16 × 16 inventory sprites. A dot is transparent; each colour is
+// a palette index. Horizontal runs share an SVG path to keep markup small.
+const palette = {
+  X: '#29332e', K: '#443b33', k: '#624736', b: '#845a3d', B: '#a87546',
+  t: '#c19560', T: '#e3b67b', h: '#f8e4b2', y: '#f6c85a', Y: '#cd973b',
+  D: '#376449', g: '#548456', G: '#79a753', l: '#9cc965', L: '#c0de82',
+  c: '#379199', C: '#68bab9', i: '#8bd8da', s: '#79958d', S: '#aac4b4',
+  w: '#e3ecdb', W: '#fff5dc', r: '#ad4e41', R: '#ec7451', p: '#9f6c88',
+  d: '#4a6674', a: '#8facbd', n: '#cb8d68', N: '#edb88d', m: '#c47a60',
+};
+
+const sprites = {
+  ai: [
+    '................','.......cc.......','......cWWc......','.....cWiicW.....',
+    '....cWiCCiWW....','....cWCCCCiW....','....cWiCCiiW....','....ccWiiicc....',
+    '.....dcWWcd.....','....XScccdaX....','...XSssssssaX...','..XSSsccccssaX..',
+    '.XdSSsssssssaaX.','.XddSSSSssaaaaX.','..XXXXXXXXXXXX..','................',
+  ],
+  // Grass block with a stepped diamond cap and two shaded dirt faces.
+  brand: [
+    '.......XX.......',
+    '.....XXLLXX.....',
+    '...XXLlLlLlXX...',
+    '.XXLlGllGllLlXX.',
+    'XlGlllGGlllGllgX',
+    'XGllGGllGllGGggX',
+    'XGGGlllGllllggDX',
+    'XbBGGGGllgGGgDbX',
+    'XBBBGbGGggDgkbbX',
+    'XBtBBBtGXDbkbbkX',
+    'XBBtBBBBXbbkbkkX',
+    '.XBBBbBBXkbbkkX.',
+    '...XBBtBXkbkX...',
+    '.....XBBXbX.....',
+    '.......XX.......',
+    '................',
+  ],
+  feed: [
+    '................',
+    '.....XXXXXX.....',
+    '...XXwwwwSsXX...',
+    '..XwwsssssSSsX..',
+    '.XwSssdddRRssSX.',
+    '.XwSsdXXRRXdsSX.',
+    '.XwSdXXRRRXdsSX.',
+    '.XwSdXRRYXXdsSX.',
+    '.XSSdXwYXXXdssX.',
+    '.XsSdwwSXXXdssX.',
+    '.XsswwSdXXddssX.',
+    '..XssSddddsssX..',
+    '...XXssssssXX...',
+    '.....XXXXXX.....',
+    '................',
+    '................',
+  ],
+  vision: [
+    '................',
+    '.........XXX....',
+    '........XiiiX...',
+    '.......XYCiiCX..',
+    '......XYTSCccX..',
+    '.....XYYttscX...',
+    '....XbYYBtbX....',
+    '....XtbYYbX.....',
+    '...XttBbXX......',
+    '..XYttbX........',
+    '.XTYBbX.........',
+    'XCTYYX..........',
+    'XiCcX...........',
+    '.XcX............',
+    '..X.............',
+    '................',
+  ],
+  library: [
+    '................',
+    '.XXXXXXXXXXXXXX.',
+    '.XTTTTTtttttttX.',
+    '.XBkkkkkkkkkkkX.',
+    '.XBRYbGgwCcrRbX.',
+    '.XBrrbggsCcrrbX.',
+    '.XBRYbGgwCcrRbX.',
+    '.XBTTTTttttttbX.',
+    '.XBbbbbbbbbbbbX.',
+    '.XBcCpGRrBYybbX.',
+    '.XBccpgRrBYybbX.',
+    '.XBCipglRBTybbX.',
+    '.XBTTttttttttbX.',
+    '.XXbbXXXXXXbbXX.',
+    '................',
+    '................',
+  ],
+  bench: [
+    '................',
+    '.....XXXXX......',
+    '...XXtYbBtXX....',
+    '.XXtYbBtbBtYXX..',
+    'XtYbttbBttbBttX.',
+    'XBttbBttbBttbbX.',
+    'XbBBttbBtBBBBkX.',
+    'XbkbBBtBbbkbBkX.',
+    'XbtbbBbKXksskkX.',
+    'XbssbbBKXkbSkbX.',
+    'XbsStbbKXkbkkbX.',
+    '.XbSttbKXkbkkX..',
+    '...XtbBKXkkX....',
+    '.....XbKXX......',
+    '.......XX.......',
+    '................',
+  ],
+  mine: [
+    '................',
+    '...........XXX..',
+    '..........XwwWX.',
+    '.........XwSSwX.',
+    '...XXXXXXwSwwX..',
+    '..XrrrrXwSwwX...',
+    '.XRRrrXwSwwXrX..',
+    '.XrRrXwSwwXrrX..',
+    '.XrRXYSwXXrrrX..',
+    '.XrXYtXXrrrrrX..',
+    '.XrXkXrrrrrrrX..',
+    '.XRRrrrrrrrrrX..',
+    '.XhhhhhhhhTTTX..',
+    '.XTTttTTTtttTX..',
+    '..XXXXXXXXXXXX..',
+    '................',
+  ],
+  friendsFeed: [
+    '................',
+    '.....XXX...XXX..',
+    '..XXXThhXXXhhX..',
+    '.XhhtTlhhThllX..',
+    '.XhlltGGhTllgX..',
+    '.XhGltGGGTcchX..',
+    '.XhGltllcTcchX..',
+    '.XhlltcchTccgX..',
+    '.XhhctcchThlgX..',
+    '.XhccthhhTRRgX..',
+    '.XcchtlGhTRRhhX.',
+    '.XhhtTGGhThRhhX.',
+    '.XTTtTllhTTTTTX.',
+    '..XXXTTTXXTTXX..',
+    '.....XXX..XX....',
+    '................',
+  ],
+  friends: [
+    '................',
+    '........XXXXXX..',
+    '..XXXXXXKkkkkkX.',
+    '.XkbbbbbXkkBbBX.',
+    '.XkbbBbBXNNNnNX.',
+    '.XkNNNnNXwXnwXX.',
+    '.XNwXnwwXNNnnNX.',
+    '.XNNNmNNXnmmnX..',
+    '..XNmmnNXggGgXX.',
+    '...XNnnXglGgGgX.',
+    '..XXCccXXgGGggX.',
+    '.XCCiCcCcXggggX.',
+    '.XCiiCCCcXXXXXX.',
+    '.XCCCCcccX......',
+    '..XXXXXXXX......',
+    '................',
+  ],
+  settings: [
+    '................',
+    '.........XX.XX..',
+    '........XsX.XwX.',
+    '.......XwSX.XwX.',
+    '.......XwwXXXwX.',
+    '.......XwSSwwSX.',
+    '.......XSSsssX..',
+    '......XwssXXX...',
+    '.....XRssX......',
+    '....XRrrX.......',
+    '...XRrrX........',
+    '..XRrrX.........',
+    '.XRrYX..........',
+    '.XrrX...........',
+    '..XX............',
+    '................',
+  ],
+};
+
+function pathFor(rows) {
+  const paths = new Map();
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length;) {
+      const tone = row[x], start = x++;
+      while (row[x] === tone) x++;
+      if (tone === '.') continue;
+      const run = x - start;
+      paths.set(tone, (paths.get(tone) || '') + 'M' + start + ' ' + y + 'h' + run + 'v1h-' + run + 'z');
+    }
+  });
+  return Array.from(paths, ([tone, path]) => '<path fill="' + palette[tone] + '" d="' + path + '"/>').join('');
+}
+
+const glyphs = new Map(Object.entries(sprites).map(([key, rows]) => [key, pathFor(rows)]));
+export function itemSvg(key, size = 28) {
+  const dimension = Number.isFinite(size) ? Math.max(12, Math.min(192, size)) : 28;
+  const shape = glyphs.get(key) || glyphs.get('brand');
+  return '<svg class="item-sprite" aria-hidden="true" focusable="false" width="' + dimension + '" height="' + dimension + '" viewBox="0 0 16 16" fill="none" stroke="none" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">' + shape + '</svg>';
+}
