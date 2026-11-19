@@ -1,0 +1,85 @@
+<view class="page feed-page">
+  <view class="feed-heading">
+    <view class="title">{{scope==="mine"?"我的发布":scope==="friends"?"好友动态":"玩家广场"}}</view>
+    <button class="publish-action" bindtap="publish">＋ 发动态</button>
+  </view>
+
+  <button wx:if="{{scope==='all'}}" class="lens-cover" bindtap="lens" style="background-image:linear-gradient(90deg,#163025e8,#1c332977),url({{banner}})">
+    <view class="cover-note"><text class="pixel"></text> 截图找玩法</view>
+    <view class="cover-title">这一帧，用了什么 Mod？</view>
+    <view class="cover-foot"><text>选取画面，查找相似效果</text><text class="arrow">→</text></view>
+  </button>
+
+  <view wx:if="{{scope==='all'}}" class="utility-row">
+    <button class="utility" bindtap="aiWorkshop">AI 工坊</button>
+    <button class="utility" bindtap="library">Mod 资源库</button><button class="utility" bindtap="bench">整合包</button><button class="utility" bindtap="friends">好友</button>
+  </view>
+  <view class="stream-head">
+    <view class="name">动态</view>
+    <button class="filter-trigger {{hasFilter?'filtered':''}}" bindtap="toggleFilter">{{filterOpen?'收起':hasFilter?'已筛选':'搜索与筛选'}}</button>
+  </view>
+  <view class="query-sheet" wx:if="{{filterOpen}}">
+    <input placeholder="搜索帖子文字" value="{{q}}" data-key="q" bindinput="input" confirm-type="search" bindconfirm="search" />
+    <input placeholder="标签，例如：生存" value="{{tag}}" data-key="tag" bindinput="input" />
+    <view class="query-dates">
+      <picker mode="date" value="{{start}}" data-key="start" bindchange="input">{{start||'开始日期'}}</picker>
+      <text>至</text>
+      <picker mode="date" value="{{end}}" data-key="end" bindchange="input">{{end||'结束日期'}}</picker>
+    </view>
+    <view class="query-actions"><button class="small ghost" bindtap="reset">清除</button><button class="small" bindtap="search">应用筛选</button></view>
+  </view>
+  <view class="card" wx:for="{{posts}}" wx:key="id">
+    <view class="row" data-id="{{item.id}}" bindtap="detail">
+      <view catchtap="authorHome" data-uid="{{item.user_id}}" class="avatar">{{item.initial}}</view>
+      <view class="grow">
+        <view catchtap="authorHome" data-uid="{{item.user_id}}" class="name">{{item.nickname}}</view>
+        <view class="muted">{{item.date}} · {{item.visibilityLabel}}</view>
+      </view>
+      <view class="badge" wx:if="{{item.hidden}}">已下架</view>
+    </view>
+    <view class="body" data-id="{{item.id}}" bindtap="detail">
+      {{item.content}}
+    </view>
+    <view class="media {{item.media.length===1?'one':''}}">
+      <block wx:for="{{item.media}}" wx:for-item="media" wx:key="id">
+        <image
+          wx:if="{{media.kind==='image'}}"
+          src="{{media.src}}"
+          mode="aspectFill"
+          data-src="{{media.src}}"
+          bindtap="preview"
+        />
+        <video wx:else src="{{media.src}}" controls />
+      </block>
+    </view>
+    <view class="tags" wx:if="{{item.tags.length}}">
+      <view
+        class="tag"
+        wx:for="{{item.tags}}"
+        wx:for-item="tag"
+        wx:key="*this"
+      >
+        # {{tag}}
+      </view>
+    </view>
+    <view
+      class="row between footer"
+      data-id="{{item.id}}"
+      bindtap="detail"
+    >
+      <view class="muted">{{item.rating_count?"★ "+item.rating_avg+" · "+item.rating_count+" 人评分":"尚无评分"}}</view>
+      <view class="link">{{item.comment_count}} 条评论 →</view>
+    </view>
+  </view>
+  <view class="empty" wx:if="{{!posts.length&&!busy}}">
+    这里还没有动态
+    <view></view>
+    发布第一条帖子，或调整筛选条件。
+  </view>
+  <view class="hint" style="text-align: center">{{busy?'正在加载…':!posts.length?'':posts.length>=total?'已显示全部动态':'上拉加载更多'}}</view>
+<view wx:if="{{scope==='all'}}" class="mini-dock">
+    <view class="pouch-shade" wx:if="{{accountOpen}}" bindtap="profile"></view>
+    <view wx:if="{{accountOpen}}" class="mini-pouch"><view class="pouch-caption"><image src="/assets/pouch.png" mode="aspectFit"/>玩家行囊</view>
+      <button bindtap="myPosts">我的发布</button><button bindtap="myAccount">账号设置</button><button bindtap="signOut">退出登录</button></view>
+    <button class="mini-avatar" bindtap="profile" aria-label="账号菜单"><image src="/assets/player-{{portrait}}.png" mode="aspectFit"/></button>
+  </view></view>

@@ -1,0 +1,25 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# Runtime data & local databases
+atlas/data/
+data/
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+# Build & IDE
+/dist/
+/build/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+project.private.config.json

@@ -1,0 +1,22 @@
+{
+  "sodium": {
+    "description": "A high-performance rendering engine replacement for Minecraft, which greatly improves frame rates and reduces micro-stutter.",
+    "icon": "/static/images/sodium.jpg"
+  },
+  "appleskin": {
+    "description": "Food/hunger-related HUD improvements",
+    "icon": "/static/images/appleskin.jpg"
+  },
+  "jei": {
+    "description": "View Items and Recipes",
+    "icon": "/static/images/jei.jpg"
+  },
+  "fallingtree": {
+    "description": "Break down your trees by only cutting one piece of it",
+    "icon": "/static/images/fallingtree.jpg"
+  },
+  "fabric-api": {
+    "description": "Lightweight and modular API providing common hooks and intercompatibility measures utilized by mods using the Fabric toolchain.",
+    "icon": "/static/images/fabric-api.jpg"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "sodium": {
+    "url": "https://cdn.modrinth.com/data/AANobbMI/295862f4724dc3f78df3447ad6072b2dcd3ef0c9_96.webp",
+    "project": "https://modrinth.com/mod/sodium",
+    "caption": "Sodium"
+  },
+  "sodium-scene": {
+    "url": "https://cdn.modrinth.com/data/AANobbMI/images/d84313e6f57dc9e7896961dbd2dfc2689d482758.webp",
+    "project": "https://modrinth.com/mod/sodium",
+    "caption": "Underwater Lighting Improvements"
+  },
+  "appleskin": {
+    "url": "https://cdn.modrinth.com/data/EsAfCjCV/icon.png",
+    "project": "https://modrinth.com/mod/appleskin",
+    "caption": "AppleSkin"
+  },
+  "jei": {
+    "url": "https://cdn.modrinth.com/data/u6dRKJwZ/4a3f18ac0d096c9f8e9176984c44be4e58f94c89_96.webp",
+    "project": "https://modrinth.com/mod/jei",
+    "caption": "Just Enough Items (JEI)"
+  },
+  "jei-scene": {
+    "url": "https://cdn.modrinth.com/data/u6dRKJwZ/images/4ebe4cc9942c4bf0b07fdac67f93026b42f9a4d4.png",
+    "project": "https://modrinth.com/mod/jei",
+    "caption": "Recipe Completion"
+  },
+  "fallingtree": {
+    "url": "https://cdn.modrinth.com/data/Fb4jn8m6/02610e2f41e1a4ea06b36ad5034be2b3d03b8f88_96.webp",
+    "project": "https://modrinth.com/mod/fallingtree",
+    "caption": "FallingTree"
+  },
+  "fabric-api": {
+    "url": "https://cdn.modrinth.com/data/P7dR8mSH/icon.png",
+    "project": "https://modrinth.com/mod/fabric-api",
+    "caption": "Fabric API"
+  },
+  "iris-scene": {
+    "url": "https://cdn.modrinth.com/data/YL57xq9U/images/2fbd04f5d123577696e29b28bb7981a2bc95a0c8.png",
+    "project": "https://modrinth.com/mod/iris",
+    "caption": "Wide Mountain"
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "desc": "课程实验，页面不参与微信索引",
+  "rules": [{ "action": "disallow", "page": "*" }]
+}

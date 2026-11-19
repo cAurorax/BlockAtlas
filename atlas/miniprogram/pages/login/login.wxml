@@ -1,0 +1,54 @@
+<view class="page">
+  <view class="login-logo">方块工坊</view>
+  <view class="eyebrow">BLOCK ATLAS</view>
+  <view class="title space">{{register?'开启你的帖子之旅':'今晚，开个新存档。'}}</view>
+  <view class="sub">
+    分享你的实机画面，寻找联机伙伴。
+    <view></view>
+    把喜欢的玩法加入自己的整合包。
+  </view>
+  <view class="card">
+    <view class="label">用户名</view>
+    <input
+      value="{{username}}"
+      data-key="username"
+      bindinput="input"
+      maxlength="30"
+      placeholder="字母、数字或下划线"
+    />
+    <view wx:if="{{register}}">
+      <view class="label">昵称</view>
+      <input
+        value="{{nickname}}"
+        data-key="nickname"
+        bindinput="input"
+        maxlength="24"
+        placeholder="朋友们怎么称呼你"
+      />
+    </view>
+    <view class="label">密码</view>
+    <input
+      value="{{password}}"
+      data-key="password"
+      bindinput="input"
+      password
+      maxlength="72"
+      placeholder="至少 8 位密码"
+    />
+    <button
+      class="space"
+      bindtap="submit"
+      loading="{{busy}}"
+      disabled="{{busy}}"
+    >
+      {{register?'注册并登录':'登录方块工坊'}}
+    </button>
+    <view class="switch" bindtap="toggle">{{register?'已有账号？返回登录':'还没有账号？立即注册'}}</view>
+  </view>
+  <button class="ghost" bindtap="demo">填入演示用户账号</button>
+  <view class="hint">
+    演示用户 alice / Alice123!
+    <view></view>
+    请先启动本地服务器，再使用开发者工具调试。
+  </view>
+</view>

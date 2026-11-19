@@ -1,0 +1,38 @@
+<view class="page"><view class="title">账号设置</view><view class="card">
+    <view class="name">修改登录密码</view>
+    <view class="hint">修改后，所有设备上的登录状态都会失效。</view>
+    <view class="label">原密码</view>
+    <input
+      password
+      value="{{old_password}}"
+      data-key="old_password"
+      bindinput="input"
+    />
+    <view class="label">新密码</view>
+    <input
+      password
+      maxlength="72"
+      value="{{new_password}}"
+      data-key="new_password"
+      bindinput="input"
+      placeholder="8–72 位密码"
+    />
+    <view class="label">确认新密码</view>
+    <input
+      password
+      maxlength="72"
+      value="{{confirm}}"
+      data-key="confirm"
+      bindinput="input"
+    />
+    <button
+      class="space"
+      bindtap="save"
+      loading="{{busy}}"
+      disabled="{{busy}}"
+    >
+      保存新密码
+    </button>
+  </view>
+  
+</view>

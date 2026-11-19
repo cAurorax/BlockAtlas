@@ -1,0 +1,15 @@
+{
+  "appid": "touristappid",
+  "projectname": "方块工坊",
+  "description": "多媒体分享与管理课程项目",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "./",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true
+  },
+  "libVersion": "3.6.0"
+}

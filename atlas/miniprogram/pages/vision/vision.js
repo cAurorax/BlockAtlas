@@ -1,0 +1,10 @@
+const api=require('../../utils/api');
+Page({data:{src:'',query:'',enabled:false,online:false,busy:false,rect:null,box:[0,0,1,1],result:null},
+ async onLoad(){try{this.setData({enabled:(await api.request('/vision/status')).online})}catch(e){api.error(e)}},
+ choose(){wx.chooseMedia({count:1,mediaType:['image'],success:r=>{const f=r.tempFiles[0];if(f.size>8*1024*1024)return api.error(new Error('图片不能超过 8 MB'));this.setData({src:f.tempFilePath,rect:null,result:null,box:[0,0,1,1]})}})},
+ measure(){wx.createSelectorQuery().in(this).select('#picture').boundingClientRect(r=>{this.frame=r}).exec()},
+ start(e){this.measure();const p=e.touches[0];this.anchor=[p.clientX,p.clientY]},
+ move(e){if(!this.frame||!this.anchor)return;const p=e.touches[0],f=this.frame;let xx=[this.anchor[0],p.clientX].map(x=>Math.max(0,Math.min(1,(x-f.left)/f.width))).sort((a,b)=>a-b),yy=[this.anchor[1],p.clientY].map(y=>Math.max(0,Math.min(1,(y-f.top)/f.height))).sort((a,b)=>a-b);this.setData({result:null,box:[xx[0],yy[0],xx[1],yy[1]],rect:'left:'+xx[0]*100+'%;top:'+yy[0]*100+'%;width:'+(xx[1]-xx[0])*100+'%;height:'+(yy[1]-yy[0])*100+'%'})},end(){this.anchor=null},
+ reset(){this.setData({rect:null,box:[0,0,1,1],result:null})},input(e){this.setData({query:e.detail.value})},toggle(){if(this.data.enabled)this.setData({online:!this.data.online})},
+ submit(){if(!this.data.src||this.data.busy)return;this.setData({busy:true,result:null});wx.uploadFile({url:getApp().globalData.baseUrl+'/api/vision/search',name:'image',filePath:this.data.src,header:{Authorization:'Bearer '+wx.getStorageSync('token')},formData:{box:JSON.stringify(this.data.box),query:this.data.query,online:String(this.data.online)},success:r=>{try{const o=JSON.parse(r.data);if(r.statusCode!==200)throw Error(o.detail||'检索失败');this.setData({result:o})}catch(e){api.error(e)}},fail:()=>api.error(new Error('无法连接服务')),complete:()=>this.setData({busy:false})})},
+ async add(e){try{await api.request('/pack/action','POST',{op:'add',value:e.currentTarget.dataset.slug});wx.navigateTo({url:'/pages/bench/bench'})}catch(e){api.error(e)}}});

@@ -1,0 +1,69 @@
+<view class="page"><view class="card"><view>发布时附上当前整合包（编辑时生成新版本）</view><button class="ghost" bindtap="togglePack">{{toggleLabel}}</button></view><view class="card"><view>关联玩法 · 选填</view><picker range="{{mods}}" range-key="title" data-key="selected" bindchange="input">{{mods[selected].title}}</picker><view>效果时间点（秒）</view><input type="number" value="{{second}}" data-key="second" bindinput="input"/></view>
+  <view class="eyebrow">A MOMENT TO REMEMBER</view>
+  <view class="title">{{id?'编辑这条帖子':'记录新的帖子'}}</view>
+  <view class="sub">此刻的心情，值得被珍藏。</view>
+  <view class="card">
+    <view class="label">文字内容</view>
+    <textarea
+      placeholder="分享你的所见、所感、所爱…"
+      maxlength="3000"
+      value="{{content}}"
+      data-key="content"
+      bindinput="input"
+    />
+    <view class="label">标签</view>
+    <input
+      placeholder="使用逗号分隔，最多 5 个"
+      maxlength="104"
+      value="{{tags}}"
+      data-key="tags"
+      bindinput="input"
+    />
+    <view class="label">谁可以看</view>
+    <picker
+      range="{{visibilities}}"
+      value="{{visibilityIndex}}"
+      bindchange="visibility"
+    >
+      {{visibilities[visibilityIndex]}}
+    </picker>
+    <view class="label">图片和视频</view>
+    <view class="media">
+      <view class="preview" wx:for="{{media}}" wx:key="id">
+        <image
+          wx:if="{{item.kind==='image'}}"
+          src="{{item.src}}"
+          mode="aspectFill"
+        />
+        <video
+          wx:else
+          src="{{item.src}}"
+          style="width: 185rpx; height: 185rpx"
+        />
+        <button
+          class="small danger"
+          data-id="{{item.id}}"
+          bindtap="remove"
+        >
+          ×
+        </button>
+      </view>
+    </view>
+    <button class="ghost space" bindtap="choose" disabled="{{busy}}">
+      ＋ 添加图片或视频
+    </button>
+    <view class="hint">
+      最多 9 个，每个不超过 50 MB。视频支持 MP4。
+      <view></view>
+      敏感词将在保存时自动替换。
+    </view>
+    <button
+      class="space"
+      bindtap="submit"
+      loading="{{busy}}"
+      disabled="{{busy}}"
+    >
+      {{id?'保存修改':'发布动态'}}
+    </button>
+  </view>
+</view>

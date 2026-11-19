@@ -1,0 +1,95 @@
+<view class="page" wx:if="{{post}}">
+  <view class="card">
+    <view class="row">
+      <view catchtap="authorHome" data-uid="{{post.user_id}}" class="avatar">{{post.initial}}</view>
+      <view class="grow">
+        <view catchtap="authorHome" data-uid="{{post.user_id}}" class="name">{{post.nickname}}</view>
+        <view class="muted">{{post.date}} · {{post.visibilityLabel}}</view>
+      </view>
+      <view class="badge" wx:if="{{post.hidden}}">已下架</view>
+    </view>
+    <view class="body">{{post.content}}</view>
+    <view class="media one">
+      <block wx:for="{{post.media}}" wx:key="id">
+        <image
+          wx:if="{{item.kind==='image'}}"
+          src="{{item.src}}"
+          mode="aspectFill"
+          data-src="{{item.src}}"
+          bindtap="preview"
+        />
+        <video id="clip-{{item.id}}" wx:else src="{{item.src}}" controls />
+      </block>
+    </view>
+    <view wx:if="{{post.mod_slug}}" class="row"><button class="small ghost" bindtap="seek">作者标记 · {{post.effect_second}} 秒</button><button class="small" bindtap="collect">加入 {{post.mod_slug}}</button></view><button wx:if="{{post.user_id!==user.id}}" class="ghost small" bindtap="report">举报</button><button wx:if="{{post.pack}}" bindtap="release">作者整合包 v{{post.pack.revision}} · 查看清单与实测</button><view class="tags">
+      <view class="tag" wx:for="{{post.tags}}" wx:key="*this">
+        # {{item}}
+      </view>
+    </view>
+    <view class="row between footer">
+      <view>★ {{post.rating_avg}} · {{post.rating_count}} 人评分</view>
+      <picker
+        wx:if="{{user.id!==post.user_id&&!post.hidden}}"
+        range="{{scores}}"
+        bindchange="rate"
+        style="width: 220rpx"
+      >
+        {{post.my_rating?'我的评分 '+post.my_rating+' 星':'评价这条动态'}}
+      </picker>
+    </view>
+    <view class="bottom" wx:if="{{user.id===post.user_id}}">
+      <button class="ghost small" bindtap="edit">编辑动态</button>
+      <button class="danger small" bindtap="remove">删除动态</button>
+    </view>
+  </view>
+  <view class="card">
+    <view class="name">评论与交流 · {{comments.length}}</view>
+    <view class="comment" wx:for="{{comments}}" wx:key="id">
+      <view class="name">
+        {{item.nickname}}
+        <text class="muted" wx:if="{{item.replyName}}">
+          回复 {{item.replyName}}
+        </text>
+      </view>
+      <view class="body">{{item.content}}</view>
+      <view class="actions">
+        <button
+          class="small ghost"
+          data-id="{{item.id}}"
+          data-name="{{item.nickname}}"
+          bindtap="reply"
+        >
+          回复
+        </button>
+        <button
+          wx:if="{{user.id===item.user_id||user.id===post.user_id||user.role==='admin'}}"
+          class="small ghost"
+          data-id="{{item.id}}"
+          bindtap="removeComment"
+        >
+          删除
+        </button>
+      </view>
+    </view>
+    <view class="empty" wx:if="{{!comments.length}}">还没有评论，来聊聊吧。</view>
+    <view class="label">{{replyName?'回复 '+replyName:'写下你的评论'}}</view>
+    <textarea
+      value="{{content}}"
+      bindinput="input"
+      placeholder="友善交流，让分享更有温度"
+      maxlength="500"
+    />
+    <view class="bottom">
+      <button class="ghost" wx:if="{{reply}}" bindtap="cancelReply">
+        取消回复
+      </button>
+      <button
+        bindtap="comment"
+        disabled="{{busy}}"
+        loading="{{busy}}"
+      >
+        发送评论
+      </button>
+    </view>
+  </view>
+</view>

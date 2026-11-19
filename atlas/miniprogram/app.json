@@ -1,0 +1,24 @@
+{
+  "pages": [
+    "pages/login/login",
+    "pages/feed/feed",
+    "pages/editor/editor",
+    "pages/detail/detail",
+    "pages/friends/friends",
+    "pages/profile/profile",
+    "pages/library/library",
+    "pages/bench/bench",
+    "pages/vision/vision",
+    "pages/release/release",
+    "pages/ai/ai",
+    "pages/player/player"
+  ],
+  "window": {
+    "navigationBarTitleText": "方块工坊",
+    "navigationBarBackgroundColor": "#f5f5ef",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f5f5ef"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

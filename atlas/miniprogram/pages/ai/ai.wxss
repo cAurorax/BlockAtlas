@@ -1,0 +1,14 @@
+.lab-card { border-radius: 8rpx; border-left: 8rpx solid #82a868; }
+.kicker { color: #5c765b; font-size: 21rpx; letter-spacing: 2rpx; }
+.lab-card .name { font-size: 38rpx; margin: 10rpx 0; }
+.mode { color: #345e3d; background: #e7efdc; display: inline-block; padding: 4rpx 12rpx; font-size: 23rpx; word-break: break-all; }
+.lab-desc { line-height: 1.7; margin: 18rpx 0 22rpx; }
+.lab-note,.lab-error { padding: 18rpx; font-size: 25rpx; line-height: 1.7; }
+.lab-note button,.lab-error button { margin-top: 14rpx; }
+.lab-error { background: #fff0d7; color: #745223; }
+.lab-actions{display:flex;flex-wrap:wrap;gap:10rpx;margin-top:16rpx}
+.lab-actions button{margin:0}
+.lab-form{margin-top:20rpx;padding:18rpx;border:1px solid #ccd7c3;background:#f8f9f3;border-radius:5rpx}
+.lab-form picker{display:block;padding:16rpx;border:1px solid #cdd7c3;background:white}
+.lab-form .muted{margin-top:12rpx;font-size:24rpx;line-height:1.6}
+.lab-form .small{margin:16rpx 0 0}

@@ -1,0 +1,46 @@
+<view class="page">
+  <view class="eyebrow">BETTER TOGETHER</view>
+  <view class="title">我的好友</view>
+  <button class="ghost" bindtap="stream">查看好友动态 →</button>
+  <view class="card">
+    <view class="name">好友与申请</view>
+    <view class="comment row" wx:for="{{friends}}" wx:key="id">
+      <view class="grow">
+        <view class="name">{{item.nickname}}</view>
+        <view class="muted">@{{item.username}} · {{item.status==='accepted'?'已成为好友':item.receiver===uid?'请求添加你':'等待确认'}}</view>
+      </view>
+      <button
+        wx:if="{{item.status==='pending'&&item.receiver===uid}}"
+        class="small"
+        data-id="{{item.id}}"
+        bindtap="accept"
+      >
+        接受
+      </button>
+      <button class="small ghost" data-id="{{item.id}}" bindtap="remove">
+        {{item.status==='accepted'?'移除':item.receiver===uid?'拒绝':'取消'}}
+      </button>
+    </view>
+    <view class="empty" wx:if="{{!friends.length}}">搜索一位朋友，开始分享。</view>
+  </view>
+  <view class="card">
+    <view class="name">发现朋友</view>
+    <view class="filter space">
+      <input
+        placeholder="昵称或用户名"
+        value="{{q}}"
+        bindinput="input"
+      />
+      <button class="small" bindtap="search">搜索</button>
+    </view>
+    <view class="comment row" wx:for="{{results}}" wx:key="id">
+      <view class="grow">
+        {{item.nickname}}
+        <view class="muted">@{{item.username}}</view>
+      </view>
+      <button class="small" data-id="{{item.id}}" bindtap="add">
+        添加好友
+      </button>
+    </view>
+  </view>
+</view>

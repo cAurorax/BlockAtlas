@@ -1,0 +1,31 @@
+<view class="page lab">
+  <view class="eyebrow">BLOCK ATLAS / AI WORKSHOP</view>
+  <view class="title">AI 工坊</view>
+  <view class="sub">默认跟随社区。你也可以给自己的账号配置 API Key，分别用于改包和识图。</view>
+  <view wx:if="{{loading}}" class="lab-note">正在读取模型设置…</view>
+  <view wx:if="{{error}}" class="lab-error">{{error}}<button class="small ghost" bindtap="refresh" disabled="{{busy}}">重试</button></view>
+  <view wx:for="{{cards}}" wx:key="kind" class="card lab-card">
+    <view class="kicker">{{item.label}} · {{item.has_personal?'个人设置':'社区默认'}}</view>
+    <view class="name">{{item.title}}</view>
+    <view class="mode">{{item.enabled?'已启用在线模型：':'当前使用：'}}{{item.mode}}</view>
+    <view class="lab-actions">
+      <button data-kind="{{item.kind}}" bindtap="open" disabled="{{busy}}">进入工具</button>
+      <button class="ghost" data-kind="{{item.kind}}" bindtap="edit" disabled="{{busy||loading||error}}">配置我的模型</button>
+    </view>
+    <view wx:if="{{form && form.kind===item.kind}}" class="lab-form">
+      <view class="label">服务商预设</view>
+      <picker range="{{form.providers}}" value="{{form.index}}" bindchange="provider" disabled="{{busy}}">{{form.providers[form.index]}}　⌄</picker>
+      <view class="label">完整请求地址（HTTPS）</view><input value="{{form.url}}" data-field="url" bindinput="change" maxlength="500" disabled="{{busy}}"/>
+      <view class="label">模型 ID</view><input value="{{form.model}}" data-field="model" bindinput="change" placeholder="填写你账户已开通的模型 ID" maxlength="160" disabled="{{busy}}"/>
+      <view class="label">个人 API Key</view><input password value="{{form.key}}" maxlength="4096" data-field="key" bindinput="change" placeholder="{{form.hasKey?'已保存，留空保留；更换地址时需重新输入':'填写你自己的密钥'}}" disabled="{{busy}}"/>
+      <button class="small ghost" bindtap="toggle" disabled="{{busy}}">{{form.enabled?'☑ 启用个人在线模型':'☐ 停用在线模型，仅使用本地模式'}}</button>
+      <view class="muted">保存只影响本账号。密钥不会回显，保存本身不会调用模型。</view>
+      <view class="lab-actions"><button bindtap="save" disabled="{{busy}}">保存设置</button><button class="ghost" bindtap="cancel" disabled="{{busy}}">取消</button></view>
+    </view>
+    <view class="lab-actions" wx:if="{{item.has_personal && !form}}">
+      <button wx:if="{{item.enabled}}" class="small ghost" data-kind="{{item.kind}}" bindtap="test" disabled="{{busy}}">测试连接</button>
+      <button class="small ghost" data-kind="{{item.kind}}" bindtap="restore" disabled="{{busy}}">恢复社区默认</button>
+    </view>
+  </view>
+  <view wx:if="{{notice}}" class="{{invalid?'lab-error':'lab-note'}}">{{notice}}</view>
+</view>
