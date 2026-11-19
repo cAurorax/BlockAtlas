@@ -63,6 +63,18 @@ flowchart LR
       <sub><b>登录页</b> · 分屏视觉入口与内置演示账号折叠面板</sub>
     </td>
     <td align="center" width="50%">
+      <img src="docs/screenshots/library.png" alt="Mod 资源库" />
+      <br />
+      <sub><b>Mod 资源库</b> · 版本锁定清单、收藏筛选与 Modrinth 一键导入</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/bench.png" alt="整合包工作台" />
+      <br />
+      <sub><b>整合包工作台</b> · 草稿来源对比、锁定/撤销保护与 AI 对话改包</sub>
+    </td>
+    <td align="center" width="50%">
       <img src="docs/screenshots/ai-workshop.png" alt="AI 工坊" />
       <br />
       <sub><b>AI 工坊</b> · 对话改整合包与截图找玩法双入口及模式状态</sub>
