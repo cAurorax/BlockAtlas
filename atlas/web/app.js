@@ -2,6 +2,7 @@ import {avatarDock,bindAvatar} from './avatar-dock.js';
 import {workshop} from './ai-workshop.js';
 import {mark,sidebar,bindRail,closeRail} from './shell.js';
 import {visionView} from './vision.js';
+import {launchView} from './launch.js';
 import {packCard,packEditor} from './pack-posts.js';
 import {openConflictGraph} from './conflicts.js';
 import {openChat,openRoom,openSharePackTo,openCreateRoom} from './chat.js';
@@ -74,7 +75,7 @@ async function api(path, options = {}) {
   }
   return result;
 }
-const pages=new Set(['feed','friends','friendsFeed','mine','library','vision','ai','bench','settings']);
+const pages=new Set(['feed','friends','friendsFeed','mine','library','vision','ai','bench','launch','settings']);
 function landing(){
   const hash=location.hash.slice(1),match=/^(player|post)\/([1-9]\d*)$/.exec(hash);
   if(match){state.entity=Number(match[2]);return match[1]}
@@ -160,7 +161,7 @@ async function renderView() {
   if (!target) return;
   target.innerHTML = '<div class="loading">正在加载工坊数据…</div>';
   const titles = {
-    player:"玩家主页",post:"帖子详情",ai:"AI 工坊",vision:"截图找玩法",reports:"举报处理",library:"发现 Mod",bench:"整合包工作台",feed: "玩家广场",
+    player:"玩家主页",post:"帖子详情",ai:"AI 工坊",vision:"截图找玩法",reports:"举报处理",library:"发现 Mod",bench:"整合包工作台",launch:"启动游戏",feed: "玩家广场",
     mine: "我的帖子",
     friendsFeed: "好友动态",
     friends: "我的好友",
@@ -174,7 +175,7 @@ async function renderView() {
   document.title=(titles[state.view]||"玩家端")+" · 方块工坊";
   try {
     await {
-      player:playerView,post:singlePost,ai:()=>workshop({api,navigate}),vision:()=>visionView({api,navigate,toast}),reports:reportsView,library:libraryView,bench:benchView, feed: feedView,
+      player:playerView,post:singlePost,ai:()=>workshop({api,navigate}),vision:()=>visionView({api,navigate,toast}),reports:reportsView,library:libraryView,bench:benchView,launch:()=>launchView({api,toast}), feed: feedView,
       mine: feedView,
       friendsFeed: feedView,
       friends: friendsView,
