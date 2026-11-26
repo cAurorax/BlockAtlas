@@ -1,11 +1,12 @@
 """Block Atlas full-stack course demo."""
 import io, json, os, re, secrets, time, zipfile, urllib.request
 from pathlib import Path
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Query
 from fastapi.responses import FileResponse, Response, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from .resources import preview
+from .providers import CatalogService, ModrinthProvider
 from . import postpacks, ai_settings
 ROOT=Path(__file__).resolve().parent
 BASE=ROOT.parent
@@ -15,6 +16,8 @@ from backend.security import hash_password, now
 from typing import Literal
 class Import(BaseModel):
     link:str=Field(min_length=1,max_length=250)
+class QuickAdd(BaseModel):
+    slug:str=Field(min_length=1,max_length=250)
 class Action(BaseModel):
     op:Literal["add","remove","lock","unlock","undo","chat"]
     value:str=Field(default="",max_length=400)
@@ -53,16 +56,45 @@ def install(app, db, current, admin, get_post):
         r=c.execute("SELECT slug,sec FROM links WHERE pid=?",(p,)).fetchone()
         return {"mod_slug":r[0] if r else "", "effect_second":r[1] if r else 0, "pack":postpacks.summary(c,p)}
     app.state.link_read=link_read;app.state.link_save=link_save
+    app.state.catalog_service=CatalogService(ModrinthProvider())
     @app.get('/api/library')
     def library(u=Depends(current)):
         with db.connect() as c:return list(allmods(c).values())
+    @app.get('/api/library/search')
+    def library_search(q:str=Query(min_length=1,max_length=120), limit:int=Query(default=8,ge=1,le=20), u=Depends(current)):
+        with db.connect() as c:return app.state.catalog_service.search_online(c,q,limit)
     @app.post('/api/library/preview')
     def peek(b:Import,u=Depends(current)):
         with db.connect() as c:return preview(b.link,allmods(c))
     @app.post('/api/library/import')
     def add(b:Import,u=Depends(current)):
+        with db.connect() as c:target,newly=app.state.catalog_service.ensure_cached(c,b.link)
+        with db.connect() as c:app.state.catalog_service.save_entries(c,newly);return target
+    @app.post('/api/library/quick-add')
+    def quick_add(b:QuickAdd,u=Depends(current)):
         with db.connect() as c:
-            v=preview(b.link,allmods(c));c.execute("INSERT OR IGNORE INTO resources VALUES(?,?)",(v['slug'],json.dumps(v)));return v
+            s=draft(c,u);cat={**allmods(c),**s.get('pins',{})};before=json.dumps(s)
+            target,newly=app.state.catalog_service.ensure_cached(c,b.slug)
+        for item in newly:cat.setdefault(item['slug'],item)
+        mods=s['mods'].copy();locks=s['locks'].copy();changes=[]
+        k=target['slug']
+        if k not in mods:
+            mods.append(k);changes.append('联网加入 '+target['title'])
+            for item_slug in mods:
+                for dep in cat[item_slug]['required']:
+                    if dep not in mods:mods.append(dep);changes.append('补齐依赖 '+dep)
+                if set(cat[item_slug].get('conflicts',[]))&set(mods):fail(cat[item_slug]['title']+' 有已声明的冲突')
+            s['history']=(s['history']+[[s['mods'],s['locks']]])[-30:]
+        auto_deps=[x['title'] for x in newly if x['slug']!=target['slug']]
+        if changes and auto_deps:s.update(mods=mods,locks=locks,last='；'.join(changes))
+        elif changes:s.update(mods=mods,locks=locks,last='联网加入 '+target['title'])
+        else:s.update(last=target['title']+' 已在草稿中')
+        with db.connect() as c:
+            c.execute("BEGIN IMMEDIATE")
+            if newly:app.state.catalog_service.save_entries(c,newly)
+            if json.dumps(draft(c,u))!=before:raise HTTPException(409,'另一端刚刚修改了草稿，请刷新重试')
+            c.execute("INSERT OR REPLACE INTO drafts VALUES(?,?)",(u['id'],json.dumps(s)))
+            return postpacks.with_diff(s)|{'online':ai_settings.player_config(db,'text',u['id']).enabled,'added':target['title'],'auto_deps':auto_deps}
     @app.get('/api/pack')
     def pack(u=Depends(current)):
         with db.connect() as c:return postpacks.with_diff(draft(c,u))|{'online':ai_settings.player_config(db,'text',u['id']).enabled}
@@ -71,6 +103,22 @@ def install(app, db, current, admin, get_post):
         with db.connect() as c:
             s=draft(c,u);cat={**allmods(c),**s.get('pins',{})};before=json.dumps(s);ops=[(b.op,b.value)]
         if b.op=='chat':ops=interpret(b.value,cat,s,ai_settings.player_config(db,'text',u['id']))
+        pending_cache=[];online_notes={}
+        if any(op=='search_add' for op,_ in ops):
+            resolved_ops=[];seen_new=set()
+            with db.connect() as c:
+                for op,val in ops:
+                    if op=='search_add':
+                        target,newly=app.state.catalog_service.search_and_resolve(c,val)
+                        for item in newly:
+                            cat.setdefault(item['slug'],item)
+                            if item['slug'] not in seen_new:
+                                seen_new.add(item['slug']);pending_cache.append(item)
+                        online_notes[target['slug']]='联网匹配并加入 '+target['title']
+                        resolved_ops.append(('add',target['slug']))
+                    else:
+                        resolved_ops.append((op,val))
+            ops=resolved_ops
         changes=[];mods=s['mods'].copy();locks=s['locks'].copy()
         if ops==[('undo','')] or b.op=='undo':
             if not s['history']:fail('没有可撤销的修改')
@@ -87,7 +135,11 @@ def install(app, db, current, admin, get_post):
                 if op=='lock' and k not in mods:fail('只能锁定包内资源')
                 if op=='remove' and k in locks:fail(cat[k]['title']+' 已锁定，请先解锁')
                 seq=mods if op in ('add','remove') else locks
-                if op in ('add','lock') and k not in seq:seq.append(k);changes.append({'add':'加入 ','lock':'锁定 '}[op]+cat[k]['title'])
+                if op in ('add','lock') and k not in seq:
+                    seq.append(k)
+                    changes.append(online_notes[k] if op=='add' and k in online_notes else {'add':'加入 ','lock':'锁定 '}[op]+cat[k]['title'])
+                elif op=='add' and k in seq and k in online_notes:
+                    changes.append(cat[k]['title']+' 已在草稿中')
                 if op in ('remove','unlock') and k in seq:seq.remove(k);changes.append({'remove':'移除 ','unlock':'解锁 '}[op]+cat[k]['title'])
             for k in mods:
                 for dep in cat[k]['required']:
@@ -100,6 +152,7 @@ def install(app, db, current, admin, get_post):
         if b.op=='chat':s['messages']=(s['messages']+[[b.value,s['last']]])[-10:]
         with db.connect() as c:
             c.execute("BEGIN IMMEDIATE")
+            if pending_cache:app.state.catalog_service.save_entries(c,pending_cache)
             if json.dumps(draft(c,u))!=before:raise HTTPException(409,'另一端刚刚修改了草稿，请刷新重试')
             c.execute("INSERT OR REPLACE INTO drafts VALUES(?,?)",(u['id'],json.dumps(s)));return s
     @app.post('/api/pack/export')
@@ -125,7 +178,7 @@ def install(app, db, current, admin, get_post):
 
 def interpret(text,cat,s,cfg):
     if cfg.enabled:
-        prompt='只返回JSON {"ops":[["add/remove/lock/unlock","slug"]]}。撤销用 [["undo",""]]。不确定或咨询返回空数组。结合当前包、前文与项目名理解中文，不虚构资源。'
+        prompt='只返回JSON {"ops":[["add/remove/lock/unlock/search_add","slug或英文关键词"]]}。本地候选已有资源用 add/remove/lock/unlock；需要本地列表之外的新玩法或 Mod 时用 ["search_add","英文关键词"]。撤销用 [["undo",""]]。不确定或咨询返回空数组。'
         data={'messages':[{'role':'system','content':prompt},{'role':'user','content':json.dumps([text,s['mods'],s['locks'],s['messages'],{k:v['title'] for k,v in cat.items()}],ensure_ascii=False)}],'response_format':{'type':'json_object'}}
         try:
             o=json.loads(ai_settings.request_chat(cfg,data,timeout=25))['ops']
@@ -137,12 +190,18 @@ def interpret(text,cat,s,cfg):
     if re.fullmatch('撤销(上一步|上一轮)?',text.strip()):return [('undo','')]
     aliases={'sodium':'性能优化','appleskin':'食物信息','jei':'配方查询','fabric-api':'基础依赖','fallingtree':'伐木'}
     ops=[]
-    for part in re.split('[，,；;]|然后|并且',text.lower().strip('。 ')):
+    for part in re.split('[，,；;]|然后|并且',text.strip('。 ')):
         m=re.fullmatch(r'\s*(加上|加入|添加|移除|删除|去掉|解锁|锁定|保留)\s*(.+?)\s*',part)
         if not m:fail('离线指令示例：加上配方查询，锁定性能优化')
-        key=next((k for k,v in cat.items() if m[2] in [k,v['title'].lower(),aliases.get(k)]),None)
-        if not key:fail('资源未入库或名称不明确：'+m[2])
-        ops.append(({'加上':'add','加入':'add','添加':'add','移除':'remove','删除':'remove','去掉':'remove','解锁':'unlock','锁定':'lock','保留':'lock'}[m[1]],key))
+        verb,raw_term=m[1],m[2].strip()
+        lowered=raw_term.lower()
+        key=next((k for k,v in cat.items() if lowered in [k,v['title'].lower(),aliases.get(k)]),None)
+        if not key:
+            if verb in ('加上','加入','添加'):
+                ops.append(('search_add',raw_term))
+                continue
+            fail('资源未入库或名称不明确：'+raw_term)
+        ops.append(({'加上':'add','加入':'add','添加':'add','移除':'remove','删除':'remove','去掉':'remove','解锁':'unlock','锁定':'lock','保留':'lock'}[verb],key))
     return ops
 
 app=create_app(os.environ.get('ATLAS_DATA',ROOT/'data'),extension=install)
