@@ -805,14 +805,16 @@ async function auditView() {
 // Renderers share the community shell, authenticated API client and modal.
 async function resourceNotes(v, onBookmarkChange){
  let n=await api('/library/'+v.slug+'/notes');openModal(v.title+' · 实测记录',`<p>Java 1.20.1 / Fabric · ${esc(v.version)}</p><button id="star" class="ghost">${n.saved?'取消收藏':'收藏资源'}</button>${n.changed?'<p>收藏的版本已经更新</p>':''}<div>${n.notes.map(x=>`<p><b>${esc(x.nickname)} · ${esc(x.result)}</b> <small>${esc(x.version)}</small><br>${esc(x.note)}</p>`).join('')||'<p class="hint">还没有玩家提交实测。运行成功与否由玩家记录，星级评分单独统计。</p>'}</div><form id="field"><select name="result"><option>成功</option><option>异常</option><option>未启动</option></select><input name="note" required maxlength="400" placeholder="写下运行环境和实际表现"><button>保存我的实测</button></form>`);
- $('#star').onclick=async()=>{try{const res=await api('/library/'+v.slug+'/bookmark',{method:'PUT'});onBookmarkChange?.(v.slug,res.saved);await resourceNotes(v,onBookmarkChange)}catch(e){toast(e.message)}};$('#field').onsubmit=async e=>{e.preventDefault();try{await api('/library/'+v.slug+'/notes',{method:'POST',body:{version:v.version,...Object.fromEntries(new FormData(e.target))}});await resourceNotes(v,onBookmarkChange)}catch(e){toast(e.message)}}}
-async function reportsView(){const rows=await api('/admin/reports');$('#content').innerHTML=head('举报处理','核对被举报的原帖与理由，再决定是否下架。')+rows.map(r=>`<section class="panel"><b>${esc(r.nickname)} · ${r.done?'已处理':'待处理'}</b><p>举报：${esc(r.reason)}</p><p>原帖 #${r.pid}：${esc(r.content)}</p>${r.done?'':`<button data-dismiss="${r.id}">处理完毕</button> <button class="ghost" data-hide="${r.pid}">下架原帖</button>`}</section>`).join('');if(!rows.length)$('#content').insertAdjacentHTML('beforeend','<div class="empty">暂无举报</div>');document.querySelectorAll('[data-dismiss]').forEach(b=>b.onclick=async()=>{try{await api('/admin/reports/'+b.dataset.dismiss+'/close',{method:'POST'});await reportsView()}catch(e){toast(e.message)}});document.querySelectorAll('[data-hide]').forEach(b=>b.onclick=()=>confirmAction('下架原帖','其他玩家将不能再看到这条内容。',async()=>{await api('/admin/posts/'+b.dataset.hide+'/status',{method:'PUT',body:{enabled:false}});await reportsView()}))}
 
+ $('#star').onclick=async()=>{try{const res=await api('/library/'+v.slug+'/bookmark',{method:'PUT'});onBookmarkChange?.(v.slug,res.saved);await resourceNotes(v,onBookmarkChange)}catch(e){toast(e.message)}};$('#field').onsubmit=async e=>{e.preventDefault();try{await api('/library/'+v.slug+'/notes',{method:'POST',body:{version:v.version,...Object.fromEntries(new FormData(e.target))}});await resourceNotes(v,onBookmarkChange)}catch(e){toast(e.message)}}}
+
+async function reportsView(){const rows=await api('/admin/reports');$('#content').innerHTML=head('举报处理','核对被举报的原帖与理由，再决定是否下架。')+rows.map(r=>`<section class="panel"><b>${esc(r.nickname)} · ${r.done?'已处理':'待处理'}</b><p>举报：${esc(r.reason)}</p><p>原帖 #${r.pid}：${esc(r.content)}</p>${r.done?'':`<button data-dismiss="${r.id}">处理完毕</button> <button class="ghost" data-hide="${r.pid}">下架原帖</button>`}</section>`).join('');if(!rows.length)$('#content').insertAdjacentHTML('beforeend','<div class="empty">暂无举报</div>');document.querySelectorAll('[data-dismiss]').forEach(b=>b.onclick=async()=>{try{await api('/admin/reports/'+b.dataset.dismiss+'/close',{method:'POST'});await reportsView()}catch(e){toast(e.message)}});document.querySelectorAll('[data-hide]').forEach(b=>b.onclick=()=>confirmAction('下架原帖','其他玩家将不能再看到这条内容。',async()=>{await api('/admin/posts/'+b.dataset.hide+'/status',{method:'PUT',body:{enabled:false}});await reportsView()}))}
 
 const alias={sodium:'性能优化',jei:'配方查询',appleskin:'食物信息','fabric-api':'基础依赖',fallingtree:'连锁伐木'};
 function asset(path){return path?.startsWith('/static/images/')||path?.startsWith('https://cdn.modrinth.com/')?esc(path):'';}
 function fmtDownloads(n){const v=Number(n||0);if(v>=1e8)return (v/1e8).toFixed(1)+' 亿次下载';if(v>=1e4)return (v/1e4).toFixed(1)+' 万次下载';return v+' 次下载';}
 async function libraryView(){
+
  const [packData,bmList]=await Promise.all([api('/pack'),api('/bookmarks')]);
  let draftMods=new Set(packData.mods||[]);
  let savedSet=new Set(bmList||[]);
@@ -841,6 +843,7 @@ async function libraryView(){
   });
  };
  const bindQuickAdd=()=>{
+
   document.querySelectorAll('[data-quick-add]').forEach(b=>b.onclick=async()=>{
    const slug=b.dataset.quickAdd,orig=b.textContent;
    b.disabled=true;b.textContent='解析依赖中…';
@@ -852,6 +855,7 @@ async function libraryView(){
    }catch(e){b.disabled=false;b.textContent=orig;toast(e.message)}
   });
  };
+
  const bindCloudBookmarks=()=>{
   document.querySelectorAll('[data-bm]').forEach(b=>b.onclick=async()=>{
    const slug=b.dataset.bm,was=savedSet.has(slug);
@@ -869,6 +873,7 @@ async function libraryView(){
     toast(e.message);
    }finally{b.disabled=false;}
   });
+
  };
 
  const loadDiscover=async(q='',cat=activeCat)=>{
