@@ -124,6 +124,11 @@ with tempfile.TemporaryDirectory() as tmp:
                 if "demo-hud" in existing:
                     return [existing["demo-hud"]]
                 return [_entry("demo-hud", "Demo HUD")]
+            if key == "demo-cloud-addon":
+                return [
+                    _entry("demo-cloud-dep", "Demo Cloud Dependency"),
+                    _entry(key, "Demo Cloud Addon", required=["demo-cloud-dep"]),
+                ]
             raise AssertionError(f"Unexpected slug resolution: {slug_or_url}")
 
     fake = FakeProvider()
@@ -210,4 +215,30 @@ with tempfile.TemporaryDirectory() as tmp:
         assert "mods/demo-minimap-1.20.1.jar" in paths
         assert "mods/demo-core-lib-1.20.1.jar" in paths
 
-    print("PASS: OOP ModProvider, cloud discovery, category filtering, cloud bookmarking, Chinese query mapping, online search, auto-dependency resolution, chat search_add (offline+LLM), and .mrpack export.")
+    # Existing Mods may declare a one-way conflict with a dependency added later.
+    with app.state.db.connect() as c:
+        sodium = json.loads(c.execute("SELECT data FROM resources WHERE slug='sodium'").fetchone()[0])
+        sodium["conflicts"] = [*sodium.get("conflicts", []), "demo-local-dep", "demo-cloud-dep"]
+        c.execute("UPDATE resources SET data=? WHERE slug='sodium'", (json.dumps(sodium),))
+        app.state.catalog_service.save_entries(
+            c,
+            [
+                _entry("demo-local-dep", "Demo Local Dependency"),
+                _entry("demo-local-middle", "Demo Local Prerequisite", required=["demo-local-dep"]),
+                _entry("demo-local-addon", "Demo Local Addon", required=["demo-local-middle"]),
+            ],
+        )
+
+    local_before = client.get("/api/pack").json()
+    cloud_before = bob.get("/api/pack").json()
+    local = client.post("/api/pack/action", json={"op": "add", "value": "demo-local-addon"})
+    cloud = bob.post("/api/library/quick-add", json={"slug": "demo-cloud-addon"})
+    assert (local.status_code, cloud.status_code) == (422, 422), (local.text, cloud.text)
+    for rejected in (local, cloud):
+        assert "Sodium" in rejected.json()["detail"] and "冲突" in rejected.json()["detail"]
+    assert client.get("/api/pack").json() == local_before
+    assert bob.get("/api/pack").json() == cloud_before
+    catalog_slugs = {item["slug"] for item in bob.get("/api/library").json()}
+    assert {"demo-cloud-dep", "demo-cloud-addon"}.isdisjoint(catalog_slugs)
+
+    print("PASS: discovery, category filtering, bookmarking, search, auto-dependencies, late dependency conflict rollback, chat search_add (offline+LLM), and .mrpack export.")

@@ -23,6 +23,25 @@ class Action(BaseModel):
     value:str=Field(default="",max_length=400)
 def fail(msg):raise HTTPException(422,msg)
 
+
+def complete_and_validate_pack(mods, catalog, changes, removed=()):
+    included = set(mods)
+    # Iteration also visits appended dependencies, including their own prerequisites.
+    for slug in mods:
+        for dep in catalog[slug]['required']:
+            if dep in included:
+                continue
+            if dep in removed:
+                fail(catalog[slug]['title']+' 仍需要 '+dep)
+            mods.append(dep)
+            included.add(dep)
+            changes.append('补齐依赖 '+dep)
+
+    for slug in mods:
+        if not included.isdisjoint(catalog[slug].get('conflicts', [])):
+            fail(catalog[slug]['title']+' 有已声明的冲突')
+
+
 def install(app, db, current, admin, get_post):
     with db.connect() as c:
         c.executescript("""
@@ -118,10 +137,7 @@ def install(app, db, current, admin, get_post):
         k=target['slug']
         if k not in mods:
             mods.append(k);changes.append('联网加入 '+target['title'])
-            for item_slug in mods:
-                for dep in cat[item_slug]['required']:
-                    if dep not in mods:mods.append(dep);changes.append('补齐依赖 '+dep)
-                if set(cat[item_slug].get('conflicts',[]))&set(mods):fail(cat[item_slug]['title']+' 有已声明的冲突')
+            complete_and_validate_pack(mods, cat, changes)
             s['history']=(s['history']+[[s['mods'],s['locks']]])[-30:]
         auto_deps=[x['title'] for x in newly if x['slug']!=target['slug']]
         if changes and auto_deps:s.update(mods=mods,locks=locks,last='；'.join(changes))
@@ -179,12 +195,8 @@ def install(app, db, current, admin, get_post):
                 elif op=='add' and k in seq and k in online_notes:
                     changes.append(cat[k]['title']+' 已在草稿中')
                 if op in ('remove','unlock') and k in seq:seq.remove(k);changes.append({'remove':'移除 ','unlock':'解锁 '}[op]+cat[k]['title'])
-            for k in mods:
-                for dep in cat[k]['required']:
-                    if dep not in mods:
-                        if ('remove',dep) in ops:fail(cat[k]['title']+' 仍需要 '+dep)
-                        mods.append(dep);changes.append('补齐依赖 '+dep)
-                if set(cat[k].get('conflicts',[]))&set(mods):fail(cat[k]['title']+' 有已声明的冲突')
+            removed = {slug for op, slug in ops if op == 'remove'}
+            complete_and_validate_pack(mods, cat, changes, removed)
             if changes:s['history']=(s['history']+[[s['mods'],s['locks']]])[-30:]
         s.update(mods=mods,locks=locks,last='；'.join(changes) or '已符合要求')
         if b.op=='chat':s['messages']=(s['messages']+[[b.value,s['last']]])[-10:]
