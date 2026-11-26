@@ -141,5 +141,63 @@ window.CATALOG = {
         "server": "unsupported"
       }
     }
+  },
+  "xaeros-minimap": {
+    "title": "Xaero's Minimap",
+    "version": "fabric-1.20.1-26.6.0",
+    "id": "PTqhBV8t",
+    "required": [
+      "fabric-api"
+    ],
+    "conflicts": [
+      "journeymap"
+    ],
+    "declared": {
+      "java": ">=17",
+      "fabricloader": ">=0.15"
+    },
+    "source": "https://modrinth.com/mod/xaeros-minimap/version/PTqhBV8t",
+    "file": {
+      "path": "mods/xaerominimap-fabric-1.20.1-26.6.0.jar",
+      "hashes": {
+        "sha1": "6f51d266bac01f03d8d3a36d3a68c68cb6313ce8",
+        "sha512": "8d8c3d69f13e62530b0046bf6620b72fb770c9ae63dff3b9f640481f379bae49bf0fc76f11f18a1cd088c2abc74bb7b09bdfbcfd18dffa3a6392c2aff160d4c3"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/1bokaNcj/versions/PTqhBV8t/xaerominimap-fabric-1.20.1-26.6.0.jar"
+      ],
+      "fileSize": 2229001,
+      "env": {
+        "client": "required",
+        "server": "optional"
+      }
+    }
+  },
+  "journeymap": {
+    "title": "JourneyMap",
+    "version": "1.20.1-6.0.8+fabric",
+    "id": "OLnxUVOS",
+    "required": [],
+    "conflicts": [],
+    "declared": {
+      "java": ">=17",
+      "fabricloader": ">=0.15"
+    },
+    "source": "https://modrinth.com/mod/journeymap/version/OLnxUVOS",
+    "file": {
+      "path": "mods/journeymap-fabric-1.20.1-6.0.8.jar",
+      "hashes": {
+        "sha1": "bed1e43f56e1b37df80b6ade432d87440a66deb9",
+        "sha512": "9795dc9b14ab6c28b46a91059bf479fb82c02cea529db6886068fa55f9208a41b071d87c49188986edbb39213abbb7a12cc4264f1241651ba0ebe987a8a32ec2"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/lfHFW1mp/versions/OLnxUVOS/journeymap-fabric-1.20.1-6.0.8.jar"
+      ],
+      "fileSize": 4366962,
+      "env": {
+        "client": "required",
+        "server": "optional"
+      }
+    }
   }
 };

@@ -18,5 +18,13 @@
   "fabric-api": {
     "description": "Lightweight and modular API providing common hooks and intercompatibility measures utilized by mods using the Fabric toolchain.",
     "icon": "/static/images/fabric-api.jpg"
+  },
+  "xaeros-minimap": {
+    "description": "Displays a map of the nearby world terrain, players, mobs, entities in the corner of your screen. Lets you create waypoints which help you find the locations you've marked.",
+    "icon": "/static/images/xaeros-minimap.png"
+  },
+  "journeymap": {
+    "description": "Real-time map used for mapping in-game or your browser as you explore.",
+    "icon": "/static/images/journeymap.png"
   }
 }

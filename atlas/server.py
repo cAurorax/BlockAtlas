@@ -35,6 +35,13 @@ def install(app, db, current, admin, get_post):
         info=json.loads((ROOT/'sources.json').read_text('utf-8-sig'))
         for k,v in catalog.items():
             v.update(slug=k,**info[k]);c.execute('INSERT OR IGNORE INTO resources VALUES(?,?)',(k,json.dumps(v)))
+            # 内置资源的展示元数据（图标/简介）跟随仓库更新，但不覆盖玩家自己导入的资源
+            row=c.execute('SELECT data FROM resources WHERE slug=?',(k,)).fetchone()
+            if row:
+                stored=json.loads(row[0])
+                if stored.get('icon','').startswith('http') and v.get('icon','').startswith('/static/'):
+                    stored['icon']=v['icon']
+                    c.execute('UPDATE resources SET data=? WHERE slug=?',(json.dumps(stored),k))
     from .feedback import install as feedback
     feedback(app,db,current,admin,get_post)
     from .vision import install as vision
@@ -46,6 +53,37 @@ def install(app, db, current, admin, get_post):
         r=c.execute("SELECT data FROM drafts WHERE uid=?",(u['id'],)).fetchone()
         return json.loads(r[0]) if r else dict(mods=['fabric-api','sodium'],locks=[],history=[],last='初始轻量生存包',messages=[])
     postpacks.install(app,db,current,get_post,allmods,draft)
+
+    def merge_shared(c,u,slugs,label):
+        """Merge a friend's shared pack into my draft: same rules as the workbench."""
+        s=draft(c,u);cat=allmods(c);mods=list(s['mods']);locks=list(s['locks']);changes=[]
+        for slug in slugs:
+            if slug in cat and slug not in mods:
+                mods.append(slug);changes.append('加入 '+cat[slug]['title'])
+        for k in list(mods):
+            if k not in cat:continue
+            for dep in cat[k]['required']:
+                if dep in cat and dep not in mods:
+                    mods.append(dep);changes.append('补齐依赖 '+cat[dep]['title'])
+        for k in mods:
+            if k not in cat:continue
+            for other in cat[k].get('conflicts',[]) or []:
+                if other in mods:
+                    fail(cat[k]['title']+' 与 '+cat[other]['title']+' 冲突，无法直接并入')
+        if changes:
+            s['history']=(s['history']+[[s['mods'],s['locks']]])[-30:]
+            origin={'label':label,'mods':list(dict.fromkeys(slugs))}
+            s.update(mods=mods,locks=locks,origin=origin,last='并入「'+label+'」：'+'；'.join(changes[:4]))
+        else:
+            s.update(last='好友分享的组件都已在草稿中')
+        c.execute("INSERT OR REPLACE INTO drafts VALUES(?,?)",(u['id'],json.dumps(s)))
+        return {'mods':s['mods'],'locks':s['locks'],'last':s['last'],'added':changes}
+
+    from .conflicts import install as conflict_graph
+    from .chat import install as friend_chat
+    conflict_graph(app,db,current,allmods,draft)
+    friend_chat(app,db,current,allmods,draft,merge_shared)
+
     def link_save(c,p,b):
         if b.mod_slug and not c.execute("SELECT 1 FROM resources WHERE slug=?",(b.mod_slug,)).fetchone():fail('关联的资源不存在')
         c.execute("INSERT OR REPLACE INTO links VALUES(?,?,?)",(p,b.mod_slug,b.effect_second))
