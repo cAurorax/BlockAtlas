@@ -81,6 +81,32 @@ with tempfile.TemporaryDirectory() as tmp:
                 ]
             return []
 
+        def discover(self, category: str = "", limit: int = 12) -> tuple[list[dict], int]:
+            pool = [
+                {
+                    "slug": "demo-iris",
+                    "title": "Demo Iris Shaders",
+                    "description": "Shader loader",
+                    "icon": "",
+                    "downloads": 8000000,
+                    "author": "tester",
+                    "source": "https://modrinth.com/mod/demo-iris",
+                    "categories": ["fabric", "optimization"],
+                },
+                {
+                    "slug": "demo-minimap",
+                    "title": "Demo Minimap",
+                    "description": "Minimap overlay",
+                    "icon": "",
+                    "downloads": 5000000,
+                    "author": "tester",
+                    "source": "https://modrinth.com/mod/demo-minimap",
+                    "categories": ["fabric", "utility"],
+                },
+            ]
+            items = [x for x in pool if not category or category in x["categories"]]
+            return items[:limit], len(items)
+
         def resolve_release(self, slug_or_url: str, existing: dict[str, dict], auto_deps: bool = True) -> list[dict]:
             key = slug_or_url.strip().rstrip("/").split("/")[-1]
             if key == "demo-minimap":
@@ -94,6 +120,10 @@ with tempfile.TemporaryDirectory() as tmp:
                 if "demo-iris" in existing:
                     return [existing["demo-iris"]]
                 return [_entry("demo-iris", "Demo Iris Shaders", required=["sodium"])]
+            if key == "demo-hud":
+                if "demo-hud" in existing:
+                    return [existing["demo-hud"]]
+                return [_entry("demo-hud", "Demo HUD")]
             raise AssertionError(f"Unexpected slug resolution: {slug_or_url}")
 
     fake = FakeProvider()
@@ -102,10 +132,22 @@ with tempfile.TemporaryDirectory() as tmp:
     client = TestClient(app)
     assert client.post("/api/auth/login", json={"username": "alice", "password": "Alice123!"}).is_success
 
-    # 2. Online search endpoint
+    # 2. Cloud discovery (empty q + category filter) and online search endpoint
+    d_all = client.get("/api/library/search")
+    assert d_all.status_code == 200, d_all.text
+    assert d_all.json()["mode"] == "discover"
+    assert d_all.json()["total_hits"] == 2
+    assert [x["slug"] for x in d_all.json()["items"]] == ["demo-iris", "demo-minimap"]
+
+    d_opt = client.get("/api/library/search", params={"category": "optimization"})
+    assert d_opt.status_code == 200, d_opt.text
+    assert d_opt.json()["mode"] == "discover"
+    assert [x["slug"] for x in d_opt.json()["items"]] == ["demo-iris"]
+
     r = client.get("/api/library/search", params={"q": "小地图"})
     assert r.status_code == 200, r.text
     payload = r.json()
+    assert payload["mode"] == "search"
     assert payload["translated"] == "minimap"
     assert payload["items"][0]["slug"] == "demo-minimap"
     assert payload["items"][0]["cached"] is False
@@ -150,7 +192,13 @@ with tempfile.TemporaryDirectory() as tmp:
         assert "demo-minimap" in llm_chat.json()["mods"]
         assert "demo-core-lib" in llm_chat.json()["mods"]
 
-    # 6. Export .mrpack contains online-resolved mod & auto-resolved dependency
+    # 6. Bookmarking an uncached cloud mod resolves metadata and saves it to bookmarks
+    bm = client.put("/api/library/demo-hud/bookmark")
+    assert bm.status_code == 200, bm.text
+    assert bm.json()["saved"] is True
+    assert "demo-hud" in client.get("/api/bookmarks").json()
+
+    # 7. Export .mrpack contains online-resolved mod & auto-resolved dependency
     exp = bob.post("/api/pack/export")
     assert exp.status_code == 200, exp.text
     dl = bob.get(exp.json()["url"])
@@ -162,4 +210,4 @@ with tempfile.TemporaryDirectory() as tmp:
         assert "mods/demo-minimap-1.20.1.jar" in paths
         assert "mods/demo-core-lib-1.20.1.jar" in paths
 
-    print("PASS: OOP ModProvider, Chinese query mapping, online search, auto-dependency resolution, chat search_add (offline+LLM), and .mrpack export.")
+    print("PASS: OOP ModProvider, cloud discovery, category filtering, cloud bookmarking, Chinese query mapping, online search, auto-dependency resolution, chat search_add (offline+LLM), and .mrpack export.")

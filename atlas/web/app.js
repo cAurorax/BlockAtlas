@@ -157,7 +157,7 @@ async function renderView() {
   if (!target) return;
   target.innerHTML = '<div class="loading">正在加载工坊数据…</div>';
   const titles = {
-    player:"玩家主页",post:"帖子详情",ai:"AI 工坊",vision:"截图找玩法",reports:"举报处理",library:"Mod 资源库",bench:"整合包工作台",feed: "玩家广场",
+    player:"玩家主页",post:"帖子详情",ai:"AI 工坊",vision:"截图找玩法",reports:"举报处理",library:"发现 Mod",bench:"整合包工作台",feed: "玩家广场",
     mine: "我的帖子",
     friendsFeed: "好友动态",
     friends: "我的好友",
@@ -803,9 +803,9 @@ async function auditView() {
     `<div class="table-wrap"><table><thead><tr><th>时间</th><th>操作者</th><th>操作</th><th>目标</th></tr></thead><tbody>${logs.map((l) => `<tr><td>${date(l.created_at)}</td><td>${esc(l.actor)}</td><td>${labels[l.action] || esc(l.action)}</td><td>${esc(l.target)}</td></tr>`).join("") || '<tr><td colspan="4">暂无操作记录</td></tr>'}</tbody></table></div>`;
 }
 // Renderers share the community shell, authenticated API client and modal.
-async function resourceNotes(v){
+async function resourceNotes(v, onBookmarkChange){
  let n=await api('/library/'+v.slug+'/notes');openModal(v.title+' · 实测记录',`<p>Java 1.20.1 / Fabric · ${esc(v.version)}</p><button id="star" class="ghost">${n.saved?'取消收藏':'收藏资源'}</button>${n.changed?'<p>收藏的版本已经更新</p>':''}<div>${n.notes.map(x=>`<p><b>${esc(x.nickname)} · ${esc(x.result)}</b> <small>${esc(x.version)}</small><br>${esc(x.note)}</p>`).join('')||'<p class="hint">还没有玩家提交实测。运行成功与否由玩家记录，星级评分单独统计。</p>'}</div><form id="field"><select name="result"><option>成功</option><option>异常</option><option>未启动</option></select><input name="note" required maxlength="400" placeholder="写下运行环境和实际表现"><button>保存我的实测</button></form>`);
- $('#star').onclick=async()=>{try{await api('/library/'+v.slug+'/bookmark',{method:'PUT'});await resourceNotes(v)}catch(e){toast(e.message)}};$('#field').onsubmit=async e=>{e.preventDefault();try{await api('/library/'+v.slug+'/notes',{method:'POST',body:{version:v.version,...Object.fromEntries(new FormData(e.target))}});await resourceNotes(v)}catch(e){toast(e.message)}}}
+ $('#star').onclick=async()=>{try{const res=await api('/library/'+v.slug+'/bookmark',{method:'PUT'});onBookmarkChange?.(v.slug,res.saved);await resourceNotes(v,onBookmarkChange)}catch(e){toast(e.message)}};$('#field').onsubmit=async e=>{e.preventDefault();try{await api('/library/'+v.slug+'/notes',{method:'POST',body:{version:v.version,...Object.fromEntries(new FormData(e.target))}});await resourceNotes(v,onBookmarkChange)}catch(e){toast(e.message)}}}
 async function reportsView(){const rows=await api('/admin/reports');$('#content').innerHTML=head('举报处理','核对被举报的原帖与理由，再决定是否下架。')+rows.map(r=>`<section class="panel"><b>${esc(r.nickname)} · ${r.done?'已处理':'待处理'}</b><p>举报：${esc(r.reason)}</p><p>原帖 #${r.pid}：${esc(r.content)}</p>${r.done?'':`<button data-dismiss="${r.id}">处理完毕</button> <button class="ghost" data-hide="${r.pid}">下架原帖</button>`}</section>`).join('');if(!rows.length)$('#content').insertAdjacentHTML('beforeend','<div class="empty">暂无举报</div>');document.querySelectorAll('[data-dismiss]').forEach(b=>b.onclick=async()=>{try{await api('/admin/reports/'+b.dataset.dismiss+'/close',{method:'POST'});await reportsView()}catch(e){toast(e.message)}});document.querySelectorAll('[data-hide]').forEach(b=>b.onclick=()=>confirmAction('下架原帖','其他玩家将不能再看到这条内容。',async()=>{await api('/admin/posts/'+b.dataset.hide+'/status',{method:'PUT',body:{enabled:false}});await reportsView()}))}
 
 
@@ -813,45 +813,148 @@ const alias={sodium:'性能优化',jei:'配方查询',appleskin:'食物信息','
 function asset(path){return path?.startsWith('/static/images/')||path?.startsWith('https://cdn.modrinth.com/')?esc(path):'';}
 function fmtDownloads(n){const v=Number(n||0);if(v>=1e8)return (v/1e8).toFixed(1)+' 亿次下载';if(v>=1e4)return (v/1e4).toFixed(1)+' 万次下载';return v+' 次下载';}
 async function libraryView(){
- let list=await api('/library');let only=false,saved=[],onlineMode=false;
- const paint=(term='')=>{
-  onlineMode=false;$('#online-banner').hidden=true;$('#back-local').hidden=true;
-  const rows=list.filter(x=>!only||saved.includes(x.slug)).filter(x=>[x.title,x.slug,alias[x.slug],x.description].join(' ').toLowerCase().includes(term.toLowerCase()));
-  $('#resource-grid').innerHTML=rows.map(x=>`<article class="resource"><img src="${asset(x.icon)||'/static/images/fabric-api.jpg'}" alt=""><small>FABRIC · 1.20.1 · 本地缓存</small><h3>${esc(x.title)}</h3><p>${esc(alias[x.slug]||x.description)}</p><small>${esc(x.version)}</small><div><a href="${esc(x.source)}" target="_blank" rel="noopener">来源 ↗</a><button class="small ghost" data-notes="${esc(x.slug)}">实测 / 收藏</button> <button class="small" data-install="${esc(x.slug)}">＋ 加入草稿</button></div></article>`).join('')||'<p>本地缓存中没有匹配项目，可直接点击上方「🌐 联网搜 Modrinth」全网检索。</p>';
-  document.querySelectorAll('[data-notes]').forEach(b=>b.onclick=()=>resourceNotes(list.find(x=>x.slug===b.dataset.notes)).catch(e=>toast(e.message)));document.querySelectorAll('[data-install]').forEach(b=>b.onclick=async()=>{try{const s=await api('/pack/action',{method:'POST',body:{op:'add',value:b.dataset.install}});toast(s.last)}catch(e){toast(e.message)}})
+ const [packData,bmList]=await Promise.all([api('/pack'),api('/bookmarks')]);
+ let draftMods=new Set(packData.mods||[]);
+ let savedSet=new Set(bmList||[]);
+ let activeTab='discover',activeCat='',currentQuery='',reqSeq=0;
+ const categories=[['','🔥 热门'],['optimization','⚡ 性能优化'],['adventure','🧭 探索地图'],['utility','🛠️ 实用工具'],['decoration','✨ 画质外观']];
+
+ $('#content').innerHTML=head('发现 Mod','直连 Modrinth 云端（适配 Java 1.20.1 / Fabric），搜到即可一键加入草稿并自动补齐前置依赖。')
+  +`<div class="lib-tabs-row"><nav aria-label="发现 Mod 分区" class="friends-sections"><button type="button" data-lib-tab="discover" aria-current="page">🌐 全网发现</button><button type="button" data-lib-tab="saved">⭐ 我的收藏 (${savedSet.size})</button></nav></div>`
+  +`<div id="discover-controls"><form id="online-search-form" class="lib-toolbar"><input id="findmod" placeholder="直接搜索全网 Mod（如 zoomify、小地图、光影…），回车即搜"><button type="submit" id="search-online">搜索</button><button type="button" class="small ghost" id="reset-search" hidden>恢复热门</button></form><div class="cat-pills">${categories.map(([k,label])=>`<button type="button" data-cat="${k}" class="${k===''?'active':''}">${label}</button>`).join('')}</div></div>`
+  +`<div id="online-banner" class="online-banner">正在连接 Modrinth 云端…</div><div id="resource-grid"></div>`;
+
+ const syncTabUI=()=>{
+  const savedBtn=$('[data-lib-tab="saved"]');
+  if(savedBtn)savedBtn.textContent=`⭐ 我的收藏 (${savedSet.size})`;
+  document.querySelectorAll('[data-lib-tab]').forEach(btn=>{
+   if(btn.dataset.libTab===activeTab)btn.setAttribute('aria-current','page');
+   else btn.removeAttribute('aria-current');
+  });
+  $('#discover-controls').hidden=activeTab!=='discover';
  };
- const paintOnline=(res)=>{
-  onlineMode=true;$('#back-local').hidden=false;
-  const tip=res.translated&&res.translated!==res.query?`（已映射为 ${esc(res.translated)}）`:'';
-  $('#online-banner').hidden=false;
-  $('#online-banner').innerHTML=`<span>🌐 已联网检索 Modrinth：<b>${esc(res.query)}</b>${tip} · 找到 <b>${res.items.length}</b> 个适配 1.20.1 / Fabric 的项目</span><small>点击「＋ 加入草稿」将自动解析版本与前置依赖并写入透明缓存</small>`;
-  $('#resource-grid').innerHTML=res.items.map(x=>`<article class="resource"><img src="${asset(x.icon)||'/static/images/fabric-api.jpg'}" alt=""><small class="res-meta"><span class="badge-online">MODRINTH 在线 · 1.20.1</span> · ${fmtDownloads(x.downloads)}</small><h3>${esc(x.title)}</h3><p>${esc(x.description||'适配 Minecraft 1.20.1 / Fabric 的客户端模组')}</p><small>${x.cached?'本地已缓存 · '+esc(x.version):'未缓存 · 点加入将自动校验并补齐前置依赖'}</small><div><a href="${esc(x.source)}" target="_blank" rel="noopener">Modrinth ↗</a> <button class="small" data-quick-add="${esc(x.slug)}">＋ 加入草稿</button></div></article>`).join('')||'<p>Modrinth 暂无适配 1.20.1 / Fabric 的匹配结果，请换个英文或中文关键词试试。</p>';
+ const syncDraftButtons=()=>{
+  document.querySelectorAll('[data-quick-add]').forEach(b=>{
+   const inDraft=draftMods.has(b.dataset.quickAdd);
+   b.disabled=inDraft;
+   b.textContent=inDraft?'已在草稿 ✓':'＋ 加入草稿';
+  });
+ };
+ const bindQuickAdd=()=>{
   document.querySelectorAll('[data-quick-add]').forEach(b=>b.onclick=async()=>{
-   const orig=b.textContent;b.disabled=true;b.textContent='解析依赖中…';
+   const slug=b.dataset.quickAdd,orig=b.textContent;
+   b.disabled=true;b.textContent='解析依赖中…';
    try{
-    const out=await api('/library/quick-add',{method:'POST',body:{slug:b.dataset.quickAdd}});
-    b.textContent='已加入草稿 ✓';
-    list=await api('/library');
+    const out=await api('/library/quick-add',{method:'POST',body:{slug}});
+    draftMods=new Set(out.mods||[...draftMods,slug]);
+    syncDraftButtons();
     toast(out.auto_deps?.length?`已加入 ${out.added}（自动补齐依赖：${out.auto_deps.join('、')}）`:out.last);
    }catch(e){b.disabled=false;b.textContent=orig;toast(e.message)}
   });
  };
- $('#content').innerHTML=head('Mod 资源库','固定游戏版本：Java 1.20.1 / Fabric。支持直接联网检索 Modrinth 并一键加入草稿（自动补齐前置依赖）。','<button id="import-mod">＋ 导入链接</button>')+'<form id="online-search-form" class="lib-toolbar"><button type="button" class="small ghost" id="onlysaved">只看收藏</button><input id="findmod" placeholder="筛选本地缓存，或输入关键词按回车联网搜 Modrinth（如 小地图 / 光影 / minimap）"><button type="submit" id="search-online">🌐 联网搜 Modrinth</button><button type="button" class="small ghost" id="back-local" hidden>返回本地缓存</button></form><div id="online-banner" class="online-banner" hidden></div><div id="resource-grid"></div>';
- $('#onlysaved').onclick=async()=>{try{saved=await api('/bookmarks');only=!only;$('#onlysaved').textContent=only?'显示全部':'只看收藏';if(!onlineMode)paint($('#findmod').value)}catch(e){toast(e.message)}};
- $('#findmod').oninput=e=>{if(!onlineMode)paint(e.target.value)};
- $('#back-local').onclick=()=>{$('#findmod').value='';paint('')};
- $('#online-search-form').onsubmit=async e=>{
-  e.preventDefault();const q=$('#findmod').value.trim();if(!q){paint('');return}
-  const btn=$('#search-online');btn.disabled=true;btn.textContent='检索中…';
-  $('#online-banner').hidden=false;$('#online-banner').textContent='正在联网请求 Modrinth 公共接口（适配 1.20.1 / Fabric）…';
-  try{paintOnline(await api('/library/search?q='+encodeURIComponent(q)))}catch(err){$('#online-banner').textContent=err.message;toast(err.message)}finally{btn.disabled=false;btn.textContent='🌐 联网搜 Modrinth'}
+ const bindCloudBookmarks=()=>{
+  document.querySelectorAll('[data-bm]').forEach(b=>b.onclick=async()=>{
+   const slug=b.dataset.bm,was=savedSet.has(slug);
+   b.disabled=true;b.textContent='保存中…';
+   try{
+    const out=await api('/library/'+encodeURIComponent(slug)+'/bookmark',{method:'PUT'});
+    if(out.saved)savedSet.add(slug);else savedSet.delete(slug);
+    b.classList.toggle('btn-saved',out.saved);
+    b.textContent=out.saved?'★ 已收藏':'☆ 收藏';
+    syncTabUI();
+    toast(out.saved?'已加入「我的收藏」':'已取消收藏');
+   }catch(e){
+    b.classList.toggle('btn-saved',was);
+    b.textContent=was?'★ 已收藏':'☆ 收藏';
+    toast(e.message);
+   }finally{b.disabled=false;}
+  });
  };
- paint();
- $('#import-mod').onclick=()=>{openModal('从 Modrinth 导入','<form id="lookup"><label>项目链接或 slug</label><input name="link" required placeholder="https://modrinth.com/mod/lithium"><p class="hint">只收录适配当前版本的客户端 Mod。已有项目不会重复导入，缺失前置依赖会自动补齐。</p><button>读取项目资料</button></form><div id="found"></div>');$('#lookup').onsubmit=async e=>{e.preventDefault();const link=e.target.link.value.trim(),dst=$('#found');dst.textContent='正在查询版本与必需依赖…';const input=e.target.link;input.disabled=true;try{const v=await api('/library/preview',{method:'POST',body:{link}});dst.innerHTML=`<h3>${esc(v.title)}</h3><p>${esc(v.description)}</p><p>版本 ${esc(v.version)} · 必需依赖：${esc(v.required.join(', ')||'索引未列出')}</p><button id="confirm-import">确认入库</button>`;$('#confirm-import').onclick=async ev=>{ev.target.disabled=true;try{await api('/library/import',{method:'POST',body:{link}});modal.close();await libraryView();toast('资源已入库')}catch(e){dst.textContent=e.message}}}catch(e){dst.textContent=e.message}finally{input.disabled=false}}}
+
+ const loadDiscover=async(q='',cat=activeCat)=>{
+  const mySeq=++reqSeq;
+  currentQuery=q.trim();activeCat=cat;
+  $('#reset-search').hidden=!currentQuery;
+  document.querySelectorAll('[data-cat]').forEach(btn=>btn.classList.toggle('active',btn.dataset.cat===activeCat));
+  const searchBtn=$('#search-online');searchBtn.disabled=true;
+  $('#online-banner').innerHTML=currentQuery?`<span>🌐 正在全网搜索：<b>${esc(currentQuery)}</b>…</span>`:'<span>🌐 正在加载 Modrinth 云端热门 Mod（适配 1.20.1 / Fabric）…</span>';
+  try{
+   const res=await api('/library/search?'+query({q:currentQuery,category:activeCat,limit:12}));
+   if(mySeq!==reqSeq||activeTab!=='discover'||!$('#resource-grid'))return;
+   if(res.mode==='discover'){
+    const totalTxt=Number(res.total_hits||0).toLocaleString('zh-CN');
+    $('#online-banner').innerHTML=`<span>🌐 已直连 Modrinth 云端 · 共 <b>${esc(totalTxt)}</b> 个适配 1.20.1 / Fabric 的客户端 Mod</span><small>点「＋ 加入草稿」自动补齐缺失前置依赖</small>`;
+   }else{
+    const tip=res.translated&&res.translated!==res.query?`（已匹配英文词 ${esc(res.translated)}）`:'';
+    $('#online-banner').innerHTML=`<span>🌐 全网搜索：<b>${esc(res.query)}</b>${tip} · 找到 <b>${res.items.length}</b> 个适配 1.20.1 / Fabric 的 Mod</span><small>点「＋ 加入草稿」自动补齐缺失前置依赖</small>`;
+   }
+   $('#resource-grid').innerHTML=res.items.map(x=>{
+    const inDraft=draftMods.has(x.slug),isSaved=savedSet.has(x.slug);
+    return `<article class="resource"><img src="${asset(x.icon)||'/static/images/fabric-api.jpg'}" alt=""><small class="res-meta"><span class="badge-online">MODRINTH · 1.20.1</span> · ${fmtDownloads(x.downloads)}</small><h3>${esc(x.title)}</h3><p title="${esc(x.description||'')}">${esc(x.description||'适配 Minecraft 1.20.1 / Fabric 的客户端模组')}</p><div><a href="${esc(x.source)}" target="_blank" rel="noopener">Modrinth ↗</a> <button type="button" class="small ghost ${isSaved?'btn-saved':''}" data-bm="${esc(x.slug)}">${isSaved?'★ 已收藏':'☆ 收藏'}</button> <button type="button" class="small" data-quick-add="${esc(x.slug)}" ${inDraft?'disabled':''}>${inDraft?'已在草稿 ✓':'＋ 加入草稿'}</button></div></article>`;
+   }).join('')||'<div class="empty">Modrinth 暂无适配 1.20.1 / Fabric 的匹配结果，换个关键词或切换分类试试。</div>';
+   bindCloudBookmarks();bindQuickAdd();
+  }catch(err){
+   if(mySeq!==reqSeq||activeTab!=='discover'||!$('#resource-grid'))return;
+   try{
+    const fallback=await api('/library');
+    if(mySeq!==reqSeq||activeTab!=='discover'||!$('#resource-grid'))return;
+    const rows=currentQuery?fallback.filter(x=>[x.title,x.slug,alias[x.slug],x.description].join(' ').toLowerCase().includes(currentQuery.toLowerCase())):fallback;
+    $('#online-banner').innerHTML=`<span>⚠️ 当前离线或云端暂不可用，正在展示已保存的 Mod</span><small>${esc(err.message)}</small>`;
+    $('#resource-grid').innerHTML=rows.map(x=>{
+     const inDraft=draftMods.has(x.slug),isSaved=savedSet.has(x.slug);
+     return `<article class="resource"><img src="${asset(x.icon)||'/static/images/fabric-api.jpg'}" alt=""><small>FABRIC · 1.20.1 · ${esc(x.version)}</small><h3>${esc(x.title)}</h3><p>${esc(alias[x.slug]||x.description)}</p><div><a href="${esc(x.source)}" target="_blank" rel="noopener">来源 ↗</a> <button type="button" class="small ghost ${isSaved?'btn-saved':''}" data-bm="${esc(x.slug)}">${isSaved?'★ 已收藏':'☆ 收藏'}</button> <button type="button" class="small" data-quick-add="${esc(x.slug)}" ${inDraft?'disabled':''}>${inDraft?'已在草稿 ✓':'＋ 加入草稿'}</button></div></article>`;
+    }).join('')||'<div class="empty">离线状态下没有匹配项目。</div>';
+    bindCloudBookmarks();bindQuickAdd();
+   }catch{
+    $('#online-banner').textContent=err.message;$('#resource-grid').innerHTML='';
+   }
+  }finally{if(searchBtn)searchBtn.disabled=false;}
+ };
+
+ const loadSaved=async()=>{
+  const mySeq=++reqSeq;
+  $('#online-banner').innerHTML='<span>⭐ 正在加载你的收藏清单…</span>';
+  const [ids,allItems,curPack]=await Promise.all([api('/bookmarks'),api('/library'),api('/pack')]);
+  if(mySeq!==reqSeq||activeTab!=='saved'||!$('#resource-grid'))return;
+  savedSet=new Set(ids||[]);draftMods=new Set(curPack.mods||[]);syncTabUI();
+  const rows=allItems.filter(x=>savedSet.has(x.slug));
+  $('#online-banner').innerHTML=`<span>⭐ 我的收藏 · 共 <b>${rows.length}</b> 个常驻收藏 Mod</span><small>只保留你手动收藏的玩法，不混入系统自动补齐的依赖库</small>`;
+  $('#resource-grid').innerHTML=rows.map(x=>{
+   const inDraft=draftMods.has(x.slug);
+   return `<article class="resource"><img src="${asset(x.icon)||'/static/images/fabric-api.jpg'}" alt=""><small>FABRIC · 1.20.1 · ${esc(x.version)}</small><h3>${esc(x.title)}</h3><p title="${esc(x.description||'')}">${esc(alias[x.slug]||x.description)}</p><div><a href="${esc(x.source)}" target="_blank" rel="noopener">来源 ↗</a> <button type="button" class="small ghost" data-notes="${esc(x.slug)}">实测记录</button> <button type="button" class="small ghost btn-saved" data-unbm="${esc(x.slug)}">★ 取消收藏</button> <button type="button" class="small" data-quick-add="${esc(x.slug)}" ${inDraft?'disabled':''}>${inDraft?'已在草稿 ✓':'＋ 加入草稿'}</button></div></article>`;
+  }).join('')||'<div class="empty">还没有收藏的 Mod。去「🌐 全网发现」点 ☆ 收藏，可以把常用玩法存进自己的账号。</div>';
+  document.querySelectorAll('[data-notes]').forEach(b=>b.onclick=()=>{
+   const item=rows.find(x=>x.slug===b.dataset.notes);
+   if(item)resourceNotes(item,(slug,isSaved)=>{if(isSaved)savedSet.add(slug);else savedSet.delete(slug);syncTabUI();if(activeTab==='saved')loadSaved();}).catch(e=>toast(e.message));
+  });
+  document.querySelectorAll('[data-unbm]').forEach(b=>b.onclick=async()=>{
+   b.disabled=true;
+   try{
+    const out=await api('/library/'+encodeURIComponent(b.dataset.unbm)+'/bookmark',{method:'PUT'});
+    if(out.saved)savedSet.add(b.dataset.unbm);else savedSet.delete(b.dataset.unbm);
+    toast('已取消收藏');await loadSaved();
+   }catch(e){b.disabled=false;toast(e.message)}
+  });
+  bindQuickAdd();
+ };
+
+ document.querySelectorAll('[data-lib-tab]').forEach(btn=>btn.onclick=()=>{
+  const next=btn.dataset.libTab;if(next===activeTab)return;
+  activeTab=next;syncTabUI();
+  if(activeTab==='discover')loadDiscover(currentQuery,activeCat);else loadSaved();
+ });
+ document.querySelectorAll('[data-cat]').forEach(btn=>btn.onclick=()=>{
+  if(activeTab!=='discover')return;
+  loadDiscover($('#findmod').value,btn.dataset.cat);
+ });
+ $('#online-search-form').onsubmit=e=>{e.preventDefault();loadDiscover($('#findmod').value,activeCat)};
+ $('#reset-search').onclick=()=>{$('#findmod').value='';loadDiscover('',activeCat)};
+ syncTabUI();
+ await loadDiscover('','');
 }
 async function benchView(){
  const [s,rows]=await Promise.all([api('/pack'),api('/library')]);const dict=Object.fromEntries(rows.map(x=>[x.slug,x]));
- $('#content').innerHTML=head('我的整合包','私人草稿 · Java 1.20.1 / Fabric 0.19.4','<button id="pack-export">生成最终包 ↓</button>')+`<div class="pack-origin"><b>草稿来源 · ${esc(s.origin?.label||"初始轻量生存包")}</b><small>新增：${esc(s.diff?.added.join("、")||"无")}　移除：${esc(s.diff?.removed.join("、")||"无")}</small></div><div class="benches"><section class="panel"><h3>组件清单 · ${s.mods.length}</h3>${s.mods.map(k=>`<div class="packrow"><img src="${asset(dict[k]?.icon)||'/static/images/fabric-api.jpg'}" alt=""><strong>${esc(dict[k]?.title||k)}<small>${esc(dict[k]?.version||'')}</small></strong><button class="small ghost" data-op="${s.locks.includes(k)?'unlock':'lock'}" data-k="${esc(k)}">${s.locks.includes(k)?'已锁定':'锁定'}</button><button class="small ghost" data-op="remove" data-k="${esc(k)}">移除</button></div>`).join('')||'还没有组件'}<p>改动：${esc(s.last)}</p><button class="small ghost" data-op="undo" ${s.history.length?'':'disabled'}>撤销上一轮</button> <button id="go-library" class="small ghost">浏览资源</button></section><section class="panel"><h3>AI 对话改包 <small>${s.online?'在线模型':'离线指令 + 联网查库'}</small></h3>${s.messages.map(([q,a])=>`<p><b>你：</b>${esc(q)}<br>工坊：${esc(a)}</p>`).join('')}<form id="adjust"><label>还想怎么改？</label><input name="q" required maxlength="400" placeholder="加上配方查询，或联网加入新玩法（如：加上小地图）"><button>应用修改</button></form><p class="hint">支持添加、移除、锁定与撤销；本地未收录的新玩法会自动联网检索 Modrinth 并补齐必需依赖。<br><a href="#ai" class="ai-inline">查看 AI 模型与配置入口 →</a></p></section></div>`;
+ $('#content').innerHTML=head('我的整合包','私人草稿 · Java 1.20.1 / Fabric 0.19.4','<button id="pack-export">生成最终包 ↓</button>')+`<div class="pack-origin"><b>草稿来源 · ${esc(s.origin?.label||"初始轻量生存包")}</b><small>新增：${esc(s.diff?.added.join("、")||"无")}　移除：${esc(s.diff?.removed.join("、")||"无")}</small></div><div class="benches"><section class="panel"><h3>组件清单 · ${s.mods.length}</h3>${s.mods.map(k=>`<div class="packrow"><img src="${asset(dict[k]?.icon)||'/static/images/fabric-api.jpg'}" alt=""><strong>${esc(dict[k]?.title||k)}<small>${esc(dict[k]?.version||'')}</small></strong><button class="small ghost" data-op="${s.locks.includes(k)?'unlock':'lock'}" data-k="${esc(k)}">${s.locks.includes(k)?'已锁定':'锁定'}</button><button class="small ghost" data-op="remove" data-k="${esc(k)}">移除</button></div>`).join('')||'还没有组件'}<p>改动：${esc(s.last)}</p><button class="small ghost" data-op="undo" ${s.history.length?'':'disabled'}>撤销上一轮</button> <button id="go-library" class="small ghost">发现更多 Mod</button></section><section class="panel"><h3>AI 对话改包 <small>${s.online?'在线模型':'离线指令 + 联网查库'}</small></h3>${s.messages.map(([q,a])=>`<p><b>你：</b>${esc(q)}<br>工坊：${esc(a)}</p>`).join('')}<form id="adjust"><label>还想怎么改？</label><input name="q" required maxlength="400" placeholder="加上配方查询，或联网加入新玩法（如：加上小地图）"><button>应用修改</button></form><p class="hint">支持添加、移除、锁定与撤销；直接输入想加的玩法，后台会自动联网检索 Modrinth 并补齐必需依赖。<br><a href="#ai" class="ai-inline">查看 AI 模型与配置入口 →</a></p></section></div>`;
  $('#go-library').onclick=()=>navigate('library');async function act(op,value=''){try{await api('/pack/action',{method:'POST',body:{op,value}});await benchView()}catch(e){toast(e.message)}}document.querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>act(b.dataset.op,b.dataset.k));$('#adjust').onsubmit=e=>{e.preventDefault();act('chat',e.target.q.value)};$('#pack-export').onclick=async()=>{try{const x=await api('/pack/export',{method:'POST'});openModal('已生成整合包',`<p>取包码（24 小时有效）</p><h2>${esc(x.code)}</h2><p>电脑上打开 <a href="/pickup">取包页</a>，或直接下载。</p><a class="download" download href="${esc(x.url)}">下载最终 .mrpack ↓</a><p class="hint">启动器首次安装需要联网获取对应版本。取包码仅分享给需要的人。</p>`)}catch(e){toast(e.message)}}}
 
 

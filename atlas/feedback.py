@@ -28,9 +28,19 @@ def install(app,db,current,admin,get_post):
             return {'saved':bool(star),'changed':bool(star and star[0]!=v['id']),'notes':[dict(x) for x in rows]}
     @app.put('/api/library/{slug}/bookmark')
     def bookmark(slug:str,u=Depends(current)):
+        newly=[]
         with db.connect() as c:
-            v=resource(c,slug);r=c.execute('DELETE FROM saved WHERE uid=? AND slug=?',(u['id'],slug))
-            if not r.rowcount:c.execute('INSERT INTO saved VALUES(?,?,?)',(u['id'],slug,v['id']))
+            row=c.execute('SELECT data FROM resources WHERE slug=?',(slug,)).fetchone()
+            if row:
+                v=json.loads(row[0])
+            else:
+                svc=getattr(app.state,'catalog_service',None)
+                if not svc:raise HTTPException(404,'资源不存在')
+                v,newly=svc.ensure_cached(c,slug)
+        with db.connect() as c:
+            if newly:app.state.catalog_service.save_entries(c,newly)
+            r=c.execute('DELETE FROM saved WHERE uid=? AND slug=?',(u['id'],v['slug']))
+            if not r.rowcount:c.execute('INSERT INTO saved VALUES(?,?,?)',(u['id'],v['slug'],v['id']))
             return {'saved':not bool(r.rowcount)}
     @app.get('/api/bookmarks')
     def bookmarks(u=Depends(current)):

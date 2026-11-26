@@ -61,8 +61,8 @@ def install(app, db, current, admin, get_post):
     def library(u=Depends(current)):
         with db.connect() as c:return list(allmods(c).values())
     @app.get('/api/library/search')
-    def library_search(q:str=Query(min_length=1,max_length=120), limit:int=Query(default=8,ge=1,le=20), u=Depends(current)):
-        with db.connect() as c:return app.state.catalog_service.search_online(c,q,limit)
+    def library_search(q:str=Query(default='',max_length=120), category:str=Query(default='',max_length=40), limit:int=Query(default=12,ge=1,le=20), u=Depends(current)):
+        with db.connect() as c:return app.state.catalog_service.search_online(c,q,limit,category)
     @app.post('/api/library/preview')
     def peek(b:Import,u=Depends(current)):
         with db.connect() as c:return preview(b.link,allmods(c))
