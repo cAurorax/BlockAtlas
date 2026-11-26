@@ -190,10 +190,15 @@ class ModrinthProvider(ModProvider):
         batch_map: dict[str, dict],
         batch_order: list[dict],
         auto_deps: bool,
+        version_id: str | None = None,
     ) -> str:
         project = self._remote("project/" + urllib.parse.quote(key, safe=""))
         slug = project["slug"]
-        if slug in existing or slug in batch_map:
+        if slug in existing:
+            if version_id and version_id != existing[slug].get("id"):
+                raise HTTPException(422, f"该 Mod 已入库，固定版本为 {existing[slug]['version']}。请使用该版本的来源链接。")
+            return slug
+        if slug in batch_map:
             return slug
         if project.get("project_type") != "mod" or project.get("client_side") == "unsupported":
             raise HTTPException(422, "仅支持客户端可用的 Minecraft Mod")
@@ -204,7 +209,12 @@ class ModrinthProvider(ModProvider):
             }
         )
         versions = self._remote(f"project/{urllib.parse.quote(slug, safe='')}/version?" + versions_qs)
-        release = next((v for v in versions if v.get("version_type") == "release"), None)
+        release = next(
+            (v for v in versions if v.get("version_type") == "release" and (not version_id or v.get("id") == version_id)),
+            None,
+        )
+        if not release and version_id:
+            raise HTTPException(422, "链接指定的版本不属于该项目，或不是适配 1.20.1 / Fabric 的正式版")
         if not release:
             raise HTTPException(422, f"{project.get('title', slug)} 没有适配 {self.GAME_VERSION} / Fabric 的正式版")
 
@@ -290,12 +300,23 @@ class ModrinthProvider(ModProvider):
         existing: dict[str, dict],
         auto_deps: bool = True,
     ) -> list[dict]:
-        match = SLUG_URL_RE.fullmatch(slug_or_url.strip())
-        if not match:
-            raise HTTPException(422, "请输入 Modrinth 的 Mod 项目页链接或项目标识")
-        key = match[1]
+        raw = slug_or_url.strip()
+        link_re = re.compile(
+            r"https://(?:www\.)?modrinth\.com/mod/([A-Za-z0-9_-]{1,80})"
+            r"(?:/version/([A-Za-z0-9_-]{1,80}))?/?"
+        )
+        match = link_re.fullmatch(raw)
+        if match:
+            key, version_id = match.groups()
+        else:
+            key, version_id = raw.removesuffix("/"), None
+            if not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", key):
+                raise HTTPException(422, "请输入 Modrinth 的 Mod 项目链接、版本链接或项目标识")
         if key in existing:
-            return [existing[key]]
+            resource = existing[key]
+            if version_id and version_id != resource.get("id"):
+                raise HTTPException(422, f"该 Mod 已入库，固定版本为 {resource['version']}。请使用该版本的来源链接。")
+            return [resource]
         batch_map: dict[str, dict] = {}
         batch_order: list[dict] = []
         resolved_slug = self._resolve_one(
@@ -306,6 +327,7 @@ class ModrinthProvider(ModProvider):
             batch_map,
             batch_order,
             auto_deps,
+            version_id=version_id,
         )
         if resolved_slug in existing and not batch_order:
             return [existing[resolved_slug]]
