@@ -1,0 +1,86 @@
+/* 启动游戏 page: launch profile form + live process card. */
+.launch-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.85fr);gap:16px;align-items:start}
+.launch-card{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:20px 22px}
+.launch-card h2{font-size:16px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.launch-card .launch-sub{color:var(--muted);font-size:12px;margin:0 0 14px}
+.launch-section{padding:16px 0;border-top:1px solid var(--line)}
+.launch-section:first-of-type{border-top:0;padding-top:0}
+.launch-section h3{font-size:13px;margin:0 0 10px;color:var(--ink)}
+.launch-section .hint{margin:6px 0 0}
+
+.launch-pin{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.launch-pin span{font:600 11px/1 ui-monospace,Consolas,monospace;background:var(--soft);border:1px solid #cfdcc4;color:#33513a;padding:5px 8px;border-radius:5px}
+
+.launch-toggle{display:inline-flex;background:#eef2e7;border:1px solid var(--line);border-radius:7px;padding:2px;gap:2px}
+.launch-toggle button{background:none;color:var(--muted);padding:6px 14px;border-radius:5px;font-size:12px;font-weight:600}
+.launch-toggle button.active{background:var(--paper);color:var(--green);box-shadow:0 1px 2px #1c38221a}
+
+.launch-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.launch-field{min-width:0}
+.launch-field label{margin-top:0}
+
+.launch-auto{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#eaf0e0;border:1px solid #cfdcc4;border-radius:8px;padding:12px 14px;margin-top:10px}
+.launch-auto b{font-size:20px;color:#284a30}
+.launch-auto small{display:block;color:#5b6f5e;font-size:11px;margin-top:3px}
+.launch-auto ul{margin:6px 0 0;padding-left:16px;color:#5b6f5e;font-size:11px}
+
+.launch-memory{display:flex;align-items:center;gap:12px;margin-top:10px}
+.launch-memory input[type=range]{flex:1;padding:0;background:none;border:0}
+.launch-memory input[type=number]{width:110px;text-align:right;font-variant-numeric:tabular-nums}
+.launch-memory-unit{font-size:12px;color:var(--muted)}
+
+.launch-presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.launch-presets button{background:#eff2ed;color:#41544a;padding:5px 9px;font-size:11px;font-weight:500}
+
+.launch-java{display:flex;flex-direction:column;gap:8px}
+.launch-java-list{display:grid;gap:6px;max-height:230px;overflow:auto;padding-right:2px}
+.launch-java-item{display:flex;align-items:flex-start;gap:9px;border:1px solid var(--line);border-radius:7px;padding:9px 11px;background:#fdfefb;cursor:pointer;text-align:left;color:var(--ink);font-weight:500}
+.launch-java-item.active{border-color:#8fae7b;background:#f0f6e7;box-shadow:inset 0 0 0 1px #8fae7b}
+.launch-java-item input{width:auto;margin:2px 0 0;flex:none}
+.launch-java-item .meta{flex:1;min-width:0}
+.launch-java-item .meta b{display:block;font-size:12px;word-break:break-all;font-weight:600}
+.launch-java-item .meta small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.launch-java-item .ok{color:#3d6b43;font-size:11px;font-weight:700;white-space:nowrap}
+.launch-java-item .old{color:#a8612c;font-size:11px;font-weight:700;white-space:nowrap}
+.launch-java-empty{border:1px dashed #cfd8c9;border-radius:7px;padding:16px;text-align:center;color:var(--muted);font-size:12px}
+
+.launch-status{display:grid;gap:10px}
+.launch-status .kv{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:7px 0;border-bottom:1px solid #edf1e8}
+.launch-status .kv:last-child{border-bottom:0}
+.launch-status .kv span{color:var(--muted);flex:none}
+.launch-status .kv b{font-weight:600;text-align:right;word-break:break-all}
+.launch-badge{display:inline-block;padding:3px 8px;border-radius:5px;font:700 10px/1.4 ui-monospace,Consolas,monospace;letter-spacing:.5px}
+.launch-badge.ok{background:#dff0d8;color:#2c572f}
+.launch-badge.warn{background:#fbf0d4;color:#8a6316}
+.launch-badge.bad{background:#fbe4df;color:#9c3f2f}
+.launch-badge.run{background:#dcecff;color:#22557f}
+
+.launch-log{margin-top:10px}
+.launch-log pre{margin:8px 0 0;background:#1d2a22;color:#d8e6d0;border-radius:8px;padding:12px;font:11px/1.7 ui-monospace,Consolas,monospace;max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+
+.launch-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.launch-actions .spacer{flex:1}
+
+/* Sticky action dock: the primary button stays reachable while scrolling. */
+.launch-dock{position:sticky;bottom:16px;z-index:4;display:flex;align-items:center;gap:10px;margin-top:18px;padding:11px 14px;background:#fffefaf5;border:1px solid var(--line);border-radius:10px;box-shadow:0 5px 16px #1c382215;backdrop-filter:blur(10px)}
+.launch-dock-note{flex:1;min-width:0;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.launch-dock button{flex:none}
+.launch-dock #lv-toggle{min-width:104px;padding:10px 20px}
+
+.launch-callout{border:1px solid #ecd9b8;background:#fdf6e7;border-radius:8px;padding:10px 12px;font-size:12px;color:#7a5a1e;margin-top:12px}
+.launch-callout b{font-weight:700}
+
+.launch-install-ok{margin:0 0 8px;font-size:12px;color:#3d6b43;font-weight:600}
+.launch-install-bar{position:relative;height:6px;background:#e6ebdf;border-radius:99px;overflow:hidden;margin:12px 0 8px}
+.launch-install-bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4a7a52,#7ba86b);border-radius:99px;transition:width .45s ease}
+/* The downloader reports progress per artifact, which is not monotonic.
+   An indeterminate sweeper keeps the bar honest without restarting. */
+.launch-install-bar>i.is-running{width:38%;border-radius:99px;animation:launch-sweep 1.5s ease-in-out infinite}
+@keyframes launch-sweep{0%{transform:translateX(-105%)}100%{transform:translateX(275%)}}
+@media(prefers-reduced-motion:reduce){.launch-install-bar>i.is-running{animation-duration:3s}}
+.launch-install-line{display:flex;justify-content:space-between;gap:10px;margin:0;font-size:12px;color:var(--ink);font-weight:600}
+.launch-install-percent,.launch-install-line>span:last-child{font-variant-numeric:tabular-nums;color:var(--muted)}
+.launch-install-detail{margin:5px 0 0;font-size:11px;color:var(--muted);min-height:1.5em;overflow-wrap:anywhere}
+
+@media(max-width:1000px){.launch-layout{grid-template-columns:minmax(0,1fr)}.launch-row{grid-template-columns:1fr}}
+@media(max-width:600px){.launch-card{padding:16px}.launch-dock{flex-wrap:wrap;gap:8px}.launch-dock-note{flex-basis:100%;white-space:normal}.launch-dock button{flex:1}}

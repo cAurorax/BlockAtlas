@@ -149,6 +149,12 @@ flowchart LR
 - 提供完全独立的 `/admin` 后台界面与管理员会话，覆盖运营统计概览、举报审核闭环、帖子下架/恢复、用户停用/删除、资源说明维护、敏感词库、AI 社区模型设置与完整操作审计日志。
 - 举报审核支持主动生成 **AI 辅助证据摘要**（离线时自动降级为本地证据整理），辅助审核员核对原帖并人工作出保留或下架决定。
 
+### 7. 启动游戏（游戏本体安装 + 启动配置）
+- **一键安装游戏本体**：没有 Minecraft 的机器点一次按钮即可装好 1.20.1 + Fabric 0.19.4 与 Mojang Java 运行时，后台任务 + 阶段进度，装完直接可启动。
+- **启动配置**：内存支持自动（按 Mod 数量与本机内存估算）与手写两种模式；可设启动窗口宽高；自动扫描本机 Java 运行时并列表选择。
+- **启动与停止**：同一按钮按状态切换，实时显示 PID；日志面板按字节游标增量追加，不整块重绘。
+- 详见 [docs/GAME_LAUNCH.md](docs/GAME_LAUNCH.md)。
+
 ---
 
 ## 🚀 快速开始
@@ -277,6 +283,7 @@ BlockAtlas/
 ├── atlas/                      # 方块工坊核心应用
 │   ├── server.py               # 路由挂载、整合包工作台、AI 改包与 .mrpack 导出
 │   ├── resources.py            # Modrinth API v2 预览、依赖与冲突校验
+│   ├── launcher.py             # 启动游戏：本体安装、内存/窗口/Java 配置、启动与停止
 │   ├── postpacks.py            # 不可变整包版本快照、一键派生与版本实测墙
 │   ├── vision.py               # 截图裁剪、本地参考图检索与多模态视觉检索
 │   ├── ai_settings.py          # 个人/社区两级模型配置、DPAPI 加密与连通性探针
@@ -313,9 +320,13 @@ python -m atlas.tools.verify_studio
 python -m atlas.tools.verify_models
 python -m atlas.tools.verify_personal_ai
 python -m atlas.tools.verify_social
+python -m atlas.tools.verify_launch
 ```
 
+> `requirements-dev.txt` 使用 `httpx2`：当前 Starlette 的 `TestClient` 依赖该包名，装成 `httpx` 会在导入时报 `requires the httpx2 package`。
+
 ### 使用范围与已知边界
+- **关于启动游戏**：版本固定为 Minecraft Java 1.20.1 + Fabric 0.19.4，与资源库的版本钉死保持一致。游戏本体与 Mojang Java 运行时由「启动游戏」页一键安装到 `%LOCALAPPDATA%\BlockAtlas\mvp`（可用 `ATLAS_MVP_ROOT` 覆盖），首次约 500 MB。仅允许本机回环地址启动；同一时间只允许一个游戏进程与一个安装任务。仅支持离线启动，不接入正版账号登录。
 - **关于 `.mrpack` 导出**：导出的 `.mrpack` 包含 `modrinth.index.json` 元数据、文件校验哈希与官方 CDN 下载链接，不包含 Mod JAR 本体；在支持 Modrinth 格式的启动器（Modrinth App、Prism Launcher、HMCL、PCL2 等）首次导入安装时需联网，建议使用独立的 Minecraft Java 1.20.1 + Java 17 实例。
 - **关于兼容性校验**：导入与工作台依赖检查基于 Modrinth 固定版本声明的必需前置与冲突字段，生成整合包不等于已完成进游戏实机启动测试；暂不支持 CurseForge 抓取。
 - **关于演示素材**：示例帖中的伐木短片为原创像素动画示意，并非 Minecraft 实机录屏；截图找玩法返回的是资源库候选 Mod 与推理依据。

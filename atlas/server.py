@@ -213,6 +213,8 @@ def install(app, db, current, admin, get_post):
         return HTMLResponse('<meta charset=utf-8><meta name=viewport content="width=device-width"><title>方块工坊 · 取包</title><main style="max-width:420px;margin:12vh auto;font:18px system-ui"><h1>领取你的整合包</h1><p>输入手机上生成的取包码。24 小时内有效。</p><form onsubmit="location.href=\'/download/\'+encodeURIComponent(this.code.value.trim());return false"><input name="code" required placeholder="取包码"><button>下载 .mrpack</button></form></main>')
     from .ui_assets import install as install_ui
     install_ui(app, ROOT/'web')
+    from .launcher import install as install_launcher
+    install_launcher(app, db, current, admin, get_post, draft)
 
 def interpret(text,cat,s,cfg):
     if cfg.enabled:

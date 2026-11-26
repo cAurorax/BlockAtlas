@@ -10,6 +10,12 @@ const palette = {
 };
 
 const sprites = {
+  launch: [
+    '................','..XXXXXXXXXXXX..','..XccccccccccX..','..XcCCCCCCCCcX..',
+    '..XcCyyCCCCCcX..','..XcCyyyCCCCcX..','..XcCyyyyCCCcX..','..XcCyyyCCCCcX..',
+    '..XcCyyCCCCCcX..','..XcCCCCCCCCcX..','..XccccccccccX..','..XXXXXXXXXXXX..',
+    '....XX....XX....','...XXXXXXXXXX...','................','................',
+  ],
   ai: [
     '................','.......cc.......','......cWWc......','.....cWiicW.....',
     '....cWiCCiWW....','....cWCCCCiW....','....cWiCCiiW....','....ccWiiicc....',
