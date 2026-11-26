@@ -1,6 +1,7 @@
 """Run with python -m atlas.tools.verify; uses an isolated SQLite database."""
 import io,json,os,tempfile,zipfile
 from pathlib import Path
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 with tempfile.TemporaryDirectory() as directory:
     os.environ['ATLAS_DATA']=directory
@@ -11,6 +12,17 @@ with tempfile.TemporaryDirectory() as directory:
     a=client('alice','Alice123!');b=client('bob','Bob12345!');m=client('admin','Admin123!')
     assert a.get('/api/admin/reports').status_code==403
     def ok(resp):assert resp.is_success,resp.text;return resp.json()
+    resources=ok(a.get('/api/library'))
+    fabric=next(x for x in resources if x['slug']=='fabric-api')
+    with patch('atlas.resources.remote',side_effect=AssertionError('Existing resources should not require Modrinth')):
+        for link in (fabric['source'],'https://modrinth.com/mod/fabric-api','fabric-api'):
+            assert ok(a.post('/api/library/preview',json={'link':link}))==fabric
+            assert ok(a.post('/api/library/import',json={'link':link}))==fabric
+        wrong_version=fabric['source'].rsplit('/',1)[0]+'/Other123'
+        for operation in ('preview','import'):
+            response=a.post('/api/library/'+operation,json={'link':wrong_version})
+            assert response.status_code==422 and fabric['version'] in response.json()['detail']
+    assert ok(a.get('/api/library'))==resources
     post=ok(b.post('/api/posts',json=dict(content='私有实测',mod_slug='jei',visibility='private')))
     assert a.post(f"/api/posts/{post['id']}/report",json={'reason':'test'}).status_code==404
     p=ok(b.put(f"/api/posts/{post['id']}",json=dict(content='好友实测',mod_slug='jei',visibility='friends')));assert p['mod_slug']=='jei'

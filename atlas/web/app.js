@@ -803,9 +803,18 @@ async function auditView() {
     `<div class="table-wrap"><table><thead><tr><th>时间</th><th>操作者</th><th>操作</th><th>目标</th></tr></thead><tbody>${logs.map((l) => `<tr><td>${date(l.created_at)}</td><td>${esc(l.actor)}</td><td>${labels[l.action] || esc(l.action)}</td><td>${esc(l.target)}</td></tr>`).join("") || '<tr><td colspan="4">暂无操作记录</td></tr>'}</tbody></table></div>`;
 }
 // Renderers share the community shell, authenticated API client and modal.
-async function resourceNotes(v){
+async function resourceNotes(v, onBookmarkChange){
  let n=await api('/library/'+v.slug+'/notes');openModal(v.title+' · 实测记录',`<p>Java 1.20.1 / Fabric · ${esc(v.version)}</p><button id="star" class="ghost">${n.saved?'取消收藏':'收藏资源'}</button>${n.changed?'<p>收藏的版本已经更新</p>':''}<div>${n.notes.map(x=>`<p><b>${esc(x.nickname)} · ${esc(x.result)}</b> <small>${esc(x.version)}</small><br>${esc(x.note)}</p>`).join('')||'<p class="hint">还没有玩家提交实测。运行成功与否由玩家记录，星级评分单独统计。</p>'}</div><form id="field"><select name="result"><option>成功</option><option>异常</option><option>未启动</option></select><input name="note" required maxlength="400" placeholder="写下运行环境和实际表现"><button>保存我的实测</button></form>`);
- $('#star').onclick=async()=>{try{await api('/library/'+v.slug+'/bookmark',{method:'PUT'});await resourceNotes(v)}catch(e){toast(e.message)}};$('#field').onsubmit=async e=>{e.preventDefault();try{await api('/library/'+v.slug+'/notes',{method:'POST',body:{version:v.version,...Object.fromEntries(new FormData(e.target))}});await resourceNotes(v)}catch(e){toast(e.message)}}}
+ $('#star').onclick = async () => {
+  try {
+   const {saved} = await api('/library/'+v.slug+'/bookmark',{method:'PUT'});
+   onBookmarkChange(v.slug, saved);
+   await resourceNotes(v, onBookmarkChange);
+  } catch (e) {
+   toast(e.message);
+  }
+ };
+ $('#field').onsubmit=async e=>{e.preventDefault();try{await api('/library/'+v.slug+'/notes',{method:'POST',body:{version:v.version,...Object.fromEntries(new FormData(e.target))}});await resourceNotes(v, onBookmarkChange)}catch(e){toast(e.message)}}}
 async function reportsView(){const rows=await api('/admin/reports');$('#content').innerHTML=head('举报处理','核对被举报的原帖与理由，再决定是否下架。')+rows.map(r=>`<section class="panel"><b>${esc(r.nickname)} · ${r.done?'已处理':'待处理'}</b><p>举报：${esc(r.reason)}</p><p>原帖 #${r.pid}：${esc(r.content)}</p>${r.done?'':`<button data-dismiss="${r.id}">处理完毕</button> <button class="ghost" data-hide="${r.pid}">下架原帖</button>`}</section>`).join('');if(!rows.length)$('#content').insertAdjacentHTML('beforeend','<div class="empty">暂无举报</div>');document.querySelectorAll('[data-dismiss]').forEach(b=>b.onclick=async()=>{try{await api('/admin/reports/'+b.dataset.dismiss+'/close',{method:'POST'});await reportsView()}catch(e){toast(e.message)}});document.querySelectorAll('[data-hide]').forEach(b=>b.onclick=()=>confirmAction('下架原帖','其他玩家将不能再看到这条内容。',async()=>{await api('/admin/posts/'+b.dataset.hide+'/status',{method:'PUT',body:{enabled:false}});await reportsView()}))}
 
 
@@ -813,13 +822,19 @@ const alias={sodium:'性能优化',jei:'配方查询',appleskin:'食物信息','
 function asset(path){return path?.startsWith('/static/images/')||path?.startsWith('https://cdn.modrinth.com/')?esc(path):'';}
 function fmtDownloads(n){const v=Number(n||0);if(v>=1e8)return (v/1e8).toFixed(1)+' 亿次下载';if(v>=1e4)return (v/1e4).toFixed(1)+' 万次下载';return v+' 次下载';}
 async function libraryView(){
- let list=await api('/library');let only=false,saved=[],onlineMode=false;
+ let list=await api('/library');let only=false,saved=new Set(),onlineMode=false;
  const paint=(term='')=>{
   onlineMode=false;$('#online-banner').hidden=true;$('#back-local').hidden=true;
-  const rows=list.filter(x=>!only||saved.includes(x.slug)).filter(x=>[x.title,x.slug,alias[x.slug],x.description].join(' ').toLowerCase().includes(term.toLowerCase()));
+  const rows=list.filter(x=>!only||saved.has(x.slug)).filter(x=>[x.title,x.slug,alias[x.slug],x.description].join(' ').toLowerCase().includes(term.toLowerCase()));
   $('#resource-grid').innerHTML=rows.map(x=>`<article class="resource"><img src="${asset(x.icon)||'/static/images/fabric-api.jpg'}" alt=""><small>FABRIC · 1.20.1 · 本地缓存</small><h3>${esc(x.title)}</h3><p>${esc(alias[x.slug]||x.description)}</p><small>${esc(x.version)}</small><div><a href="${esc(x.source)}" target="_blank" rel="noopener">来源 ↗</a><button class="small ghost" data-notes="${esc(x.slug)}">实测 / 收藏</button> <button class="small" data-install="${esc(x.slug)}">＋ 加入草稿</button></div></article>`).join('')||'<p>本地缓存中没有匹配项目，可直接点击上方「🌐 联网搜 Modrinth」全网检索。</p>';
-  document.querySelectorAll('[data-notes]').forEach(b=>b.onclick=()=>resourceNotes(list.find(x=>x.slug===b.dataset.notes)).catch(e=>toast(e.message)));document.querySelectorAll('[data-install]').forEach(b=>b.onclick=async()=>{try{const s=await api('/pack/action',{method:'POST',body:{op:'add',value:b.dataset.install}});toast(s.last)}catch(e){toast(e.message)}})
+  document.querySelectorAll('[data-notes]').forEach(b=>b.onclick=()=>resourceNotes(list.find(x=>x.slug===b.dataset.notes), updateBookmark).catch(e=>toast(e.message)));document.querySelectorAll('[data-install]').forEach(b=>b.onclick=async()=>{try{const s=await api('/pack/action',{method:'POST',body:{op:'add',value:b.dataset.install}});toast(s.last)}catch(e){toast(e.message)}})
  };
+ function updateBookmark(slug, isSaved) {
+  if (isSaved) saved.add(slug);
+  else saved.delete(slug);
+  const search = $('#findmod');
+  if (only && !onlineMode && search) paint(search.value);
+ }
  const paintOnline=(res)=>{
   onlineMode=true;$('#back-local').hidden=false;
   const tip=res.translated&&res.translated!==res.query?`（已映射为 ${esc(res.translated)}）`:'';
@@ -837,7 +852,7 @@ async function libraryView(){
   });
  };
  $('#content').innerHTML=head('Mod 资源库','固定游戏版本：Java 1.20.1 / Fabric。支持直接联网检索 Modrinth 并一键加入草稿（自动补齐前置依赖）。','<button id="import-mod">＋ 导入链接</button>')+'<form id="online-search-form" class="lib-toolbar"><button type="button" class="small ghost" id="onlysaved">只看收藏</button><input id="findmod" placeholder="筛选本地缓存，或输入关键词按回车联网搜 Modrinth（如 小地图 / 光影 / minimap）"><button type="submit" id="search-online">🌐 联网搜 Modrinth</button><button type="button" class="small ghost" id="back-local" hidden>返回本地缓存</button></form><div id="online-banner" class="online-banner" hidden></div><div id="resource-grid"></div>';
- $('#onlysaved').onclick=async()=>{try{saved=await api('/bookmarks');only=!only;$('#onlysaved').textContent=only?'显示全部':'只看收藏';if(!onlineMode)paint($('#findmod').value)}catch(e){toast(e.message)}};
+ $('#onlysaved').onclick=async()=>{try{saved=new Set(await api('/bookmarks'));only=!only;$('#onlysaved').textContent=only?'显示全部':'只看收藏';if(!onlineMode)paint($('#findmod').value)}catch(e){toast(e.message)}};
  $('#findmod').oninput=e=>{if(!onlineMode)paint(e.target.value)};
  $('#back-local').onclick=()=>{$('#findmod').value='';paint('')};
  $('#online-search-form').onsubmit=async e=>{
