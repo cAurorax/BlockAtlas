@@ -1,8 +1,10 @@
 """Object-oriented online mod provider abstraction and transparent catalog cache."""
 from __future__ import annotations
 
+import inspect
 import json
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -24,6 +26,10 @@ class ModProvider(ABC):
     def search(self, query: str, limit: int = 8) -> list[dict]:
         """Search compatible client mods from the external repository."""
 
+    def discover(self, category: str = "", limit: int = 12) -> tuple[list[dict], int]:
+        """Browse popular compatible client mods from the external repository."""
+        return [], 0
+
     @abstractmethod
     def resolve_release(
         self,
@@ -42,6 +48,11 @@ class ModrinthProvider(ModProvider):
     LOADER = "fabric"
     MAX_DEP_DEPTH = 4
     MAX_AUTO_DEPS = 6
+    CACHE_TTL = 120.0
+    ALLOWED_CATEGORIES = {"optimization", "utility", "adventure", "decoration"}
+
+    def __init__(self):
+        self._cache: dict[tuple[str, str, int, str], tuple[float, list[dict], int]] = {}
 
     ZH_QUERY_MAP = {
         "连锁伐木": "fallingtree",
@@ -105,22 +116,35 @@ class ModrinthProvider(ModProvider):
         except Exception as exc:
             raise HTTPException(502, "Modrinth 在线服务暂不可用，请稍后重试（本地缓存仍可离线使用）") from exc
 
-    def search(self, query: str, limit: int = 8) -> list[dict]:
-        translated = self.normalize_query(query)
-        if not translated:
-            return []
-        facets = json.dumps(
-            [
-                ["project_type:mod"],
-                [f"versions:{self.GAME_VERSION}"],
-                [f"categories:{self.LOADER}"],
-            ]
-        )
+    def _query_modrinth(
+        self,
+        query: str,
+        limit: int,
+        category: str = "",
+        index: str = "relevance",
+    ) -> tuple[list[dict], int]:
+        clean_cat = category.strip().lower()
+        if clean_cat not in self.ALLOWED_CATEGORIES:
+            clean_cat = ""
+        capped = max(1, min(int(limit), 20))
+        cache_key = (query, clean_cat, capped, index)
+        cached_hit = self._cache.get(cache_key)
+        if cached_hit and (time.monotonic() - cached_hit[0]) < self.CACHE_TTL:
+            return list(cached_hit[1]), cached_hit[2]
+
+        facets = [
+            ["project_type:mod"],
+            [f"versions:{self.GAME_VERSION}"],
+            [f"categories:{self.LOADER}"],
+        ]
+        if clean_cat:
+            facets.append([f"categories:{clean_cat}"])
         params = urllib.parse.urlencode(
             {
-                "query": translated,
-                "limit": max(1, min(int(limit), 20)),
-                "facets": facets,
+                "query": query,
+                "limit": capped,
+                "index": index,
+                "facets": json.dumps(facets),
             }
         )
         data = self._remote("search?" + params)
@@ -143,7 +167,19 @@ class ModrinthProvider(ModProvider):
                     "categories": hit.get("categories") or [],
                 }
             )
+        total_hits = int(data.get("total_hits") or len(items))
+        self._cache[cache_key] = (time.monotonic(), list(items), total_hits)
+        return items, total_hits
+
+    def search(self, query: str, limit: int = 8, category: str = "") -> list[dict]:
+        translated = self.normalize_query(query)
+        if not translated:
+            return []
+        items, _ = self._query_modrinth(translated, limit, category=category, index="relevance")
         return items
+
+    def discover(self, category: str = "", limit: int = 12) -> tuple[list[dict], int]:
+        return self._query_modrinth("", limit, category=category, index="downloads")
 
     def _resolve_one(
         self,
@@ -292,10 +328,22 @@ class CatalogService:
                 (item["slug"], json.dumps(item)),
             )
 
-    def search_online(self, c, query: str, limit: int = 8) -> dict:
+    def search_online(self, c, query: str = "", limit: int = 12, category: str = "") -> dict:
         cached = self.list_cached(c)
-        translated = self.provider.normalize_query(query)
-        raw_hits = self.provider.search(query, limit=limit)
+        clean_q = query.strip()
+        clean_cat = category.strip().lower()
+        if not clean_q:
+            raw_hits, total_hits = self.provider.discover(category=clean_cat, limit=limit)
+            translated = ""
+            mode = "discover"
+        else:
+            translated = self.provider.normalize_query(clean_q)
+            if clean_cat and "category" in inspect.signature(self.provider.search).parameters:
+                raw_hits = self.provider.search(clean_q, limit=limit, category=clean_cat)
+            else:
+                raw_hits = self.provider.search(clean_q, limit=limit)
+            total_hits = len(raw_hits)
+            mode = "search"
         items = []
         for hit in raw_hits:
             slug = hit["slug"]
@@ -309,6 +357,9 @@ class CatalogService:
         return {
             "query": query,
             "translated": translated,
+            "category": clean_cat,
+            "mode": mode,
+            "total_hits": total_hits,
             "provider": "modrinth",
             "items": items,
         }

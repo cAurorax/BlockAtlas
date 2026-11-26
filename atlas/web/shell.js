@@ -1,6 +1,6 @@
 import {itemSvg} from './items.js';
 export const mark=itemSvg('brand',40);
-const mainItems=[['feed','玩家广场','广场'],['library','Mod 资源库','资源'],['ai','AI 工坊','AI'],['bench','整合包工作台','整合包'],['friends','好友','好友']];
+const mainItems=[['feed','玩家广场','广场'],['library','发现 Mod','Mod'],['ai','AI 工坊','AI'],['bench','整合包工作台','整合包'],['friends','好友','好友']];
 function navItem([key,title,short],active){
   return `<button type="button" data-view="${key}" aria-label="${title}" title="${title}" ${key===active?'aria-current="page" class="active"':''}><span class="item-slot">${itemSvg(key,28)}</span><span class="nav-label">${title}</span><span class="nav-mini" aria-hidden="true">${short}</span></button>`;
 }
