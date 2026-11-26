@@ -3,6 +3,8 @@ import {workshop} from './ai-workshop.js';
 import {mark,sidebar,bindRail,closeRail} from './shell.js';
 import {visionView} from './vision.js';
 import {packCard,packEditor} from './pack-posts.js';
+import {openConflictGraph} from './conflicts.js';
+import {openChat,openRoom,openSharePackTo,openCreateRoom} from './chat.js';
 const $ = (selector, root = document) => root.querySelector(selector);
 const app = $("#app");
 const modal = $("#modal");
@@ -22,6 +24,7 @@ const esc = (value) =>
         c
       ],
   );
+const avatarUrl = (uid) => `/static/images/player-${Math.abs(Number(uid) || 0) % 3}.png`;
 const date = (value) =>
   new Date(value).toLocaleString("zh-CN", {
     timeZone: "Asia/Shanghai",
@@ -527,10 +530,18 @@ async function showComments(id) {
   }
 }
 async function friendsView() {
-  const list = await api("/friends");
+  const [list, rooms] = await Promise.all([api("/friends"), api("/rooms").catch(() => [])]);
   $("#content").innerHTML =
-    head("好友", "") +
-    `<div class="split"><div class="panel"><h3>好友与申请</h3>${list.length ? list.map((f) => `<div class="friend"><div class="avatar">${esc(f.nickname[0])}</div><div class="info"><strong>${esc(f.nickname)}</strong><small>@${esc(f.username)} · ${f.status === "accepted" ? "已成为好友" : f.requester === state.user.id ? "等待对方确认" : "请求添加你为好友"}</small></div>${f.status === "pending" && f.receiver === state.user.id ? `<button class="small" data-accept="${f.id}">接受</button>` : ""}<button class="small ghost" data-remove-friend="${f.id}">${f.status === "accepted" ? "移除" : f.receiver === state.user.id ? "拒绝" : "取消"}</button></div>`).join("") : '<p class="muted">还没有好友，试试搜索用户名。</p>'}</div><div class="panel"><h3>发现朋友</h3><form id="find-friend" class="filter"><input name="q" placeholder="搜索昵称或用户名" aria-label="搜索好友"><button>搜索</button></form><div id="friend-results"><p class="hint">演示账号：alice、bob、carol。</p></div></div></div>`;
+    head("好友", "", '<button id="new-room">＋ 创建群聊</button>') +
+    (rooms.length
+      ? `<section class="panel"><h3>我的群聊 · ${rooms.length}</h3><div class="room-list">${rooms
+          .map(
+            (r) =>
+              `<button class="room-chip" data-room="${r.id}" data-name="${esc(r.name)}">${esc(r.name)}<small>${r.members.length} 人${r.unread ? ` · ${r.unread} 条未读` : ''}</small></button>`,
+          )
+          .join("")}</div></section>`
+      : "") +
+    `<div class="split"><div class="panel"><h3>好友与申请</h3>${list.length ? list.map((f) => `<div class="friend"><img class="avatar avatar-pic" src="${avatarUrl(f.other_id)}" alt=""><div class="info"><strong>${esc(f.nickname)}</strong><small>@${esc(f.username)} · ${f.status === "accepted" ? "已成为好友" : f.requester === state.user.id ? "等待对方确认" : "请求添加你为好友"}</small></div>${f.status === "pending" && f.receiver === state.user.id ? `<button class="small" data-accept="${f.id}">接受</button>` : ""}${f.status === "accepted" ? `<button class="small" data-chat="${f.other_id}" data-nickname="${esc(f.nickname)}">聊天</button>` : ""}<button class="small ghost" data-remove-friend="${f.id}">${f.status === "accepted" ? "移除" : f.receiver === state.user.id ? "拒绝" : "取消"}</button></div>`).join("") : '<p class="muted">还没有好友，试试搜索用户名。</p>'}</div><div class="panel"><h3>发现朋友</h3><form id="find-friend" class="filter"><input name="q" placeholder="搜索昵称或用户名" aria-label="搜索好友"><button>搜索</button></form><div id="friend-results"><p class="hint">演示账号：alice、bob、carol。</p></div></div></div>`;
   document.querySelectorAll("[data-accept]").forEach(
     (b) =>
       (b.onclick = async () => {
@@ -560,6 +571,13 @@ async function friendsView() {
           },
         )),
   );
+  document.querySelectorAll("[data-chat]").forEach(
+    (b) => (b.onclick = () => openChat(b.dataset.chat, b.dataset.nickname)),
+  );
+  $("#new-room").onclick = () => openCreateRoom(() => renderView());
+  document.querySelectorAll("[data-room]").forEach(
+    (b) => (b.onclick = () => openRoom(b.dataset.room, b.dataset.name)),
+  );
   $("#find-friend").onsubmit = async (event) => {
     event.preventDefault();
     try {
@@ -570,7 +588,7 @@ async function friendsView() {
         ? result
             .map(
               (u) =>
-                `<div class="friend"><div class="avatar">${esc(u.nickname[0])}</div><div class="info">${esc(u.nickname)}<small>@${esc(u.username)}</small></div><button class="small" data-add-friend="${u.id}">添加好友</button></div>`,
+                `<div class="friend"><img class="avatar avatar-pic" src="${avatarUrl(u.id)}" alt=""><div class="info">${esc(u.nickname)}<small>@${esc(u.username)}</small></div><button class="small" data-add-friend="${u.id}">添加好友</button></div>`,
             )
             .join("")
         : '<p class="muted">没有找到匹配的用户</p>';
@@ -821,7 +839,7 @@ async function libraryView(){
  let activeTab='discover',activeCat='',currentQuery='',reqSeq=0;
  const categories=[['','🔥 热门'],['optimization','⚡ 性能优化'],['adventure','🧭 探索地图'],['utility','🛠️ 实用工具'],['decoration','✨ 画质外观']];
 
- $('#content').innerHTML=head('发现 Mod','直连 Modrinth 云端（适配 Java 1.20.1 / Fabric），搜到即可一键加入草稿并自动补齐前置依赖。')
+ $('#content').innerHTML=head('发现 Mod','直连 Modrinth 云端（适配 Java 1.20.1 / Fabric），搜到即可一键加入草稿并自动补齐前置依赖。','<button class="small ghost" id="conflict-map">冲突图</button>')
   +`<div class="lib-tabs-row"><nav aria-label="发现 Mod 分区" class="friends-sections"><button type="button" data-lib-tab="discover" aria-current="page">🌐 全网发现</button><button type="button" data-lib-tab="saved">⭐ 我的收藏 (${savedSet.size})</button></nav></div>`
   +`<div id="discover-controls"><form id="online-search-form" class="lib-toolbar"><input id="findmod" placeholder="直接搜索全网 Mod（如 zoomify、小地图、光影…），回车即搜"><button type="submit" id="search-online">搜索</button><button type="button" class="small ghost" id="reset-search" hidden>恢复热门</button></form><div class="cat-pills">${categories.map(([k,label])=>`<button type="button" data-cat="${k}" class="${k===''?'active':''}">${label}</button>`).join('')}</div></div>`
   +`<div id="online-banner" class="online-banner">正在连接 Modrinth 云端…</div><div id="resource-grid"></div>`;
@@ -954,13 +972,14 @@ async function libraryView(){
  });
  $('#online-search-form').onsubmit=e=>{e.preventDefault();loadDiscover($('#findmod').value,activeCat)};
  $('#reset-search').onclick=()=>{$('#findmod').value='';loadDiscover('',activeCat)};
+ $('#conflict-map').onclick=()=>openConflictGraph().catch(e=>toast(e.message));
  syncTabUI();
  await loadDiscover('','');
 }
 async function benchView(){
  const [s,rows]=await Promise.all([api('/pack'),api('/library')]);const dict=Object.fromEntries(rows.map(x=>[x.slug,x]));
- $('#content').innerHTML=head('我的整合包','私人草稿 · Java 1.20.1 / Fabric 0.19.4','<button id="pack-export">生成最终包 ↓</button>')+`<div class="pack-origin"><b>草稿来源 · ${esc(s.origin?.label||"初始轻量生存包")}</b><small>新增：${esc(s.diff?.added.join("、")||"无")}　移除：${esc(s.diff?.removed.join("、")||"无")}</small></div><div class="benches"><section class="panel"><h3>组件清单 · ${s.mods.length}</h3>${s.mods.map(k=>`<div class="packrow"><img src="${asset(dict[k]?.icon)||'/static/images/fabric-api.jpg'}" alt=""><strong>${esc(dict[k]?.title||k)}<small>${esc(dict[k]?.version||'')}</small></strong><button class="small ghost" data-op="${s.locks.includes(k)?'unlock':'lock'}" data-k="${esc(k)}">${s.locks.includes(k)?'已锁定':'锁定'}</button><button class="small ghost" data-op="remove" data-k="${esc(k)}">移除</button></div>`).join('')||'还没有组件'}<p>改动：${esc(s.last)}</p><button class="small ghost" data-op="undo" ${s.history.length?'':'disabled'}>撤销上一轮</button> <button id="go-library" class="small ghost">发现更多 Mod</button></section><section class="panel"><h3>AI 对话改包 <small>${s.online?'在线模型':'离线指令 + 联网查库'}</small></h3>${s.messages.map(([q,a])=>`<p><b>你：</b>${esc(q)}<br>工坊：${esc(a)}</p>`).join('')}<form id="adjust"><label>还想怎么改？</label><input name="q" required maxlength="400" placeholder="加上配方查询，或联网加入新玩法（如：加上小地图）"><button>应用修改</button></form><p class="hint">支持添加、移除、锁定与撤销；直接输入想加的玩法，后台会自动联网检索 Modrinth 并补齐必需依赖。<br><a href="#ai" class="ai-inline">查看 AI 模型与配置入口 →</a></p></section></div>`;
- $('#go-library').onclick=()=>navigate('library');async function act(op,value=''){try{await api('/pack/action',{method:'POST',body:{op,value}});await benchView()}catch(e){toast(e.message)}}document.querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>act(b.dataset.op,b.dataset.k));$('#adjust').onsubmit=e=>{e.preventDefault();act('chat',e.target.q.value)};$('#pack-export').onclick=async()=>{try{const x=await api('/pack/export',{method:'POST'});openModal('已生成整合包',`<p>取包码（24 小时有效）</p><h2>${esc(x.code)}</h2><p>电脑上打开 <a href="/pickup">取包页</a>，或直接下载。</p><a class="download" download href="${esc(x.url)}">下载最终 .mrpack ↓</a><p class="hint">启动器首次安装需要联网获取对应版本。取包码仅分享给需要的人。</p>`)}catch(e){toast(e.message)}}}
+ $('#content').innerHTML=head('我的整合包','私人草稿 · Java 1.20.1 / Fabric 0.19.4','<button id="pack-export">生成最终包 ↓</button> <button class="small ghost" id="share-pack">分享给好友</button>')+`<div class="pack-origin"><b>草稿来源 · ${esc(s.origin?.label||"初始轻量生存包")}</b><small>新增：${esc(s.diff?.added.join("、")||"无")}　移除：${esc(s.diff?.removed.join("、")||"无")}</small></div><div class="benches"><section class="panel"><h3>组件清单 · ${s.mods.length}</h3>${s.mods.map(k=>`<div class="packrow"><img src="${asset(dict[k]?.icon)||'/static/images/fabric-api.jpg'}" alt=""><strong>${esc(dict[k]?.title||k)}<small>${esc(dict[k]?.version||'')}</small></strong><button class="small ghost" data-op="${s.locks.includes(k)?'unlock':'lock'}" data-k="${esc(k)}">${s.locks.includes(k)?'已锁定':'锁定'}</button><button class="small ghost" data-op="remove" data-k="${esc(k)}">移除</button></div>`).join('')||'还没有组件'}<p>改动：${esc(s.last)}</p><button class="small ghost" data-op="undo" ${s.history.length?'':'disabled'}>撤销上一轮</button> <button id="go-library" class="small ghost">发现更多 Mod</button></section><section class="panel"><h3>AI 对话改包 <small>${s.online?'在线模型':'离线指令 + 联网查库'}</small></h3>${s.messages.map(([q,a])=>`<p><b>你：</b>${esc(q)}<br>工坊：${esc(a)}</p>`).join('')}<form id="adjust"><label>还想怎么改？</label><input name="q" required maxlength="400" placeholder="加上配方查询，或联网加入新玩法（如：加上小地图）"><button>应用修改</button></form><p class="hint">支持添加、移除、锁定与撤销；直接输入想加的玩法，后台会自动联网检索 Modrinth 并补齐必需依赖。<br><a href="#ai" class="ai-inline">查看 AI 模型与配置入口 →</a></p></section></div>`;
+ $('#go-library').onclick=()=>navigate('library');async function act(op,value=''){try{await api('/pack/action',{method:'POST',body:{op,value}});await benchView()}catch(e){toast(e.message)}}document.querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>act(b.dataset.op,b.dataset.k));$('#adjust').onsubmit=e=>{e.preventDefault();act('chat',e.target.q.value)};$('#share-pack').onclick=()=>openSharePackTo().catch(e=>toast(e.message));$('#pack-export').onclick=async()=>{try{const x=await api('/pack/export',{method:'POST'});openModal('已生成整合包',`<p>取包码（24 小时有效）</p><h2>${esc(x.code)}</h2><p>电脑上打开 <a href="/pickup">取包页</a>，或直接下载。</p><a class="download" download href="${esc(x.url)}">下载最终 .mrpack ↓</a><p class="hint">启动器首次安装需要联网获取对应版本。取包码仅分享给需要的人。</p>`)}catch(e){toast(e.message)}}}
 
 
 try {
@@ -972,3 +991,5 @@ try {
 } catch {
   loginView();
 }
+
+export { api, esc, openModal, toast, state, navigate };

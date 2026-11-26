@@ -210,6 +210,14 @@ small,
   color: var(--green);
   font-weight: 700;
 }
+.avatar-pic {
+  display: block;
+  object-fit: cover;
+  border: 0;
+}
+img[src*="/static/images/player-"] {
+  image-rendering: pixelated;
+}
 .account .name {
   flex: 1;
 }
